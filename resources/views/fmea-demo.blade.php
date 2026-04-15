@@ -236,17 +236,9 @@
         }
 
         .form-group {
-
-            display: grid;
-
-            grid-template-columns: 180px 1fr;
-
-            align-items: center;
-
-            gap: 12px;
-
-            margin-bottom: 10px;
-
+            grid-template-columns: 140px 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         .form-group label {
@@ -265,6 +257,53 @@
 
             width: 100%;
 
+        }
+
+        .btn-toggle {
+            width: 100%;
+            text-align: left;
+            padding: 12px;
+            font-weight: 600;
+            background: #2599e7;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #sectionB {
+            display: none;
+        }
+
+        .row-item {
+            display: grid;
+            grid-template-columns: 180px 120px 80px 120px 80px 120px 1fr;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .row-item label {
+            font-weight: 600;
+        }
+
+        .row-item span {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        /* mobile */
+        @media(max-width:768px) {
+            .row-item {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            grid-template-columns: 1fr;
+        }
         }
     </style>
 </head>
@@ -310,12 +349,6 @@
                         @endforeach
                     </select>
                 </div>
-
-                <label>Driver</label>
-                <div class="form-group">
-                    <input type="text" name="driver">
-                </div>
-
                 <label>Cara Patroli</label>
                 <div class="form-group">
                     <select name="cara_patroli" id="cara_patroli">
@@ -325,6 +358,13 @@
                         <option value="lainnya">Lain-lain</option>
                     </select>
                 </div>
+
+                <label>Driver</label>
+                <div class="form-group">
+                    <input type="text" name="driver">
+                </div>
+
+
                 <label id="label_cara_patroli_lainnya" style="display:none">
                     Keterangan Lain-lain
                 </label>
@@ -332,307 +372,286 @@
                     <input type="text" name="cara_patroli_lainnya" id="cara_patroli_lainnya"
                         placeholder="Isi keterangan cara patroli lain..." style="display:none">
 
-                    <input type="date" name="tanggal_inspeksi"
-                        value="{{ $schedule->planned_date->format('Y-m-d') }}">
+                    <input type="date" name="tanggal_inspeksi" value="{{ $schedule->planned_date->format('Y-m-d') }}"
+                        readonly>
                 </div>
             </div>
             <hr>
 
             <!-- ===================== B. KONDISI UMUM ===================== -->
             <div class="section">
-                <h3>B. Kondisi Umum Jaringan Fiber Optik</h3>
+                <button type="button" onclick="toggleSection('sectionB')" class="btn-toggle">
+                    B. Kondisi Umum Jaringan Fiber Optik ⬇
+                </button>
 
-                <h4>1. Kabel Putus</h4>
-                <div class="form-group">
-                    <select name="kabel_putus[status]">
-                        <option value="tidak">Tidak</option>
-                        <option value="ya">Ya</option>
-                    </select>
-                </div>
+                <div id="sectionB">
 
+                    <div class="row-item">
+                        <label>1. Kabel Putus</label>
 
-                <label>Jalur Backup</label>
-                <div class="form-group">
-                    <select name="kabel_putus[backup]">
-                        <option value="ada">Ada</option>
-                        <option value="tidak">Tidak</option>
-                    </select>
-                </div>
-
-                <label>Dampak</label>
-                <div class="form-group">
-                    <select name="kabel_putus[dampak]">
-                        <option value="normal">Tidak terganggu</option>
-                        <option value="sebagian">Sebagian terganggu</option>
-                        <option value="down">Segmen down total</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <textarea name="kondisi[kabel_putus][catatan]" placeholder="Catatan kabel putus..." rows="3"></textarea>
-                </div>
-                <hr>
-
-
-                <!-- 2. KABEL EXPOSE -->
-                <h4>2. Kabel Expose</h4>
-                <div class="form-group">
-                    <select name="kabel_expose[status]">
-                        <option value="tidak">Tidak</option>
-                        <option value="ada">Ada</option>
-                    </select>
-                </div>
-
-                <label>Kondisi Pelindung</label>
-                <div class="form-group">
-                    <select name="kabel_expose[pelindung]">
-                        <option value="utuh">Utuh</option>
-                        <option value="retak">Retak</option>
-                        <option value="rusak">Rusak</option>
-                    </select>
-                </div>
-
-
-                <label>Kondisi Lingkungan</label>
-                <div class="form-group">
-                    <select name="kabel_expose[lingkungan]">
-                        <option value="aman">Aman</option>
-                        <option value="tanah_air">Tanah / Air</option>
-                        <option value="beban">Beban Lalu Lintas</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <textarea name="kondisi[kabel_expose][catatan]" placeholder="Catatan....." rows="3"></textarea>
-                </div>
-                <hr>
-
-
-                <!-- 3. PENYANGGA JEMBATAN -->
-
-                <h4>3. Penyangga Kabel di Jembatan</h4>
-                <div class="form-group">
-                    <div class="form-group">
-                        <select name="penyangga[status]">
-                            <option value="baik">Baik</option>
-                            <option value="rusak">Ada Kerusakan</option>
+                        <select name="kabel_putus[status]">
+                            <option value="">Pilih</option>
+                            <option value="tidak">Tidak</option>
+                            <option value="ya">Ya</option>
                         </select>
+
+                        <span>Backup</span>
+                        <select name="kabel_putus[backup]">
+                            <option value="">Pilih</option>
+                            <option value="ada">Ada</option>
+                            <option value="tidak">Tidak</option>
+                        </select>
+
+                        <span>Dampak</span>
+                        <select name="kabel_putus[dampak]">
+                            <option value="">Pilih</option>
+                            <option value="normal">Normal</option>
+                            <option value="sebagian">Sebagian</option>
+                            <option value="down">Down</option>
+                        </select>
+
+                        <input type="text" name="kondisi[kabel_putus][catatan]" placeholder="Catatan...">
                     </div>
+
+
+
+
+                    <!-- 2. KABEL EXPOSE -->
+                    <div class="row-item">
+                        <label>2. Kabel Expose</label>
+
+                        <select name="kabel_expose[status]">
+                            <option value="">Pilih</option>
+                            <option value="tidak">Tidak</option>
+                            <option value="ada">Ada</option>
+                        </select>
+
+                        <span>Pelindung</span>
+                        <select name="kabel_expose[pelindung]">
+                            <option value="">Pilih</option>
+                            <option value="utuh">Utuh</option>
+                            <option value="retak">Retak</option>
+                            <option value="rusak">Rusak</option>
+                        </select>
+
+                        <span>Lingkungan</span>
+                        <select name="kabel_expose[lingkungan]">
+                            <option value="">Pilih</option>
+                            <option value="aman">Aman</option>
+                            <option value="tanah_air">Tanah/Air</option>
+                            <option value="beban">Beban</option>
+                        </select>
+
+                        <input type="text" name="kondisi[kabel_expose][catatan]" placeholder="Catatan...">
+                    </div>
+
+
+                    <!-- 3. PENYANGGA JEMBATAN -->
+
+                    <div class="row-item">
+                        <label>3. Penyangga</label>
+
+                        <select name="penyangga[status]">
+                            <option value="">Pilih</option>
+                            <option value="baik">Baik</option>
+                            <option value="rusak">Rusak</option>
+                        </select>
+
+                        <span>Kondisi</span>
+                        <select name="penyangga[kondisi]">
+                            <option value="">Pilih</option>
+                            <option value="karat">Karat</option>
+                            <option value="retak">Retak</option>
+                            <option value="lepas">Lepas</option>
+                        </select>
+
+                        <span>Kabel</span>
+                        <select name="penyangga[kabel]">
+                            <option value="">Pilih</option>
+                            <option value="aman">Aman</option>
+                            <option value="menurun">Menurun</option>
+                            <option value="tertarik">Tertarik</option>
+                        </select>
+
+                        <input type="text" name="kondisi[penyangga][catatan]" placeholder="Catatan...">
+                    </div>
+
+                    <!-- 4. TIANG KU -->
+                    <div class="row-item">
+                        <label>4. Tiang KU</label>
+
+                        <select name="tiang[posisi]">
+                            <option value="">Pilih</option>
+                            <option value="tegak">Tegak</option>
+                            <option value="miring">Miring</option>
+                        </select>
+
+                        <span>Kondisi</span>
+                        <select name="tiang[kondisi]">
+                            <option value="">Pilih</option>
+                            <option value="aman">Aman</option>
+                            <option value="parah">Parah</option>
+                        </select>
+
+                        <span>Kemiringan</span>
+                        <select name="tiang[miring]">
+                            <option value="">Pilih</option>
+                            <option value="ringan">Ringan</option>
+                            <option value="sedang">Sedang</option>
+                            <option value="berat">Berat</option>
+                        </select>
+
+                        <input type="text" name="kondisi[tiang][catatan]" placeholder="Catatan...">
+                    </div>
+
+
+                    <!-- 5. KABEL DI CLAMP -->
+
+                    <div class="row-item">
+                        <label>5. Clamp</label>
+
+                        <select name="clamp[status]">
+                            <option value="">Pilih</option>
+                            <option value="baik">Baik</option>
+                            <option value="rusak">Rusak</option>
+                        </select>
+
+                        <span>Kondisi</span>
+                        <select name="clamp[kondisi]">
+                            <option value="">Pilih</option>
+                            <option value="kendur">Kendur</option>
+                            <option value="tergesek">Tergesek</option>
+                            <option value="tertekan">Tertekan</option>
+                        </select>
+
+                        <span>-</span>
+                        <span>-</span>
+
+                        <input type="text" name="kondisi[clamp][catatan]" placeholder="Catatan...">
+                    </div>
+
+                    <!-- 6. LINGKUNGAN -->
+                    <div class="row-item">
+                        <label>6. Lingkungan</label>
+
+                        <select name="lingkungan[status]">
+                            <option value="">Pilih</option>
+                            <option value="aman">Aman</option>
+                            <option value="tidak_aman">Tidak Aman</option>
+                        </select>
+
+                        <span>Dampak</span>
+                        <select name="lingkungan[dampak]">
+                            <option value="">Pilih</option>
+                            <option value="belum">Belum</option>
+                            <option value="potensi">Potensi</option>
+                            <option value="sudah">Sudah</option>
+                        </select>
+
+                        <span>-</span>
+                        <span>-</span>
+
+                        <input type="text" name="kondisi[lingkungan][catatan]" placeholder="Catatan...">
+                    </div>
+
+                    <!-- 7. VEGETASI -->
+                    <div class="row-item">
+                        <label>7. Vegetasi</label>
+
+                        <select name="vegetasi[status]">
+                            <option value="">Pilih</option>
+                            <option value="aman">Aman</option>
+                            <option value="tidak_aman">Tidak Aman</option>
+                        </select>
+
+                        <span>Jarak</span>
+                        <select name="vegetasi[jarak]">
+                            <option value="">Pilih</option>
+                            <option value="dekat">Dekat</option>
+                            <option value="sentuh">Sentuh</option>
+                            <option value="tekan">Tekan</option>
+                            <option value="tumbang">Tumbang</option>
+                        </select>
+
+                        <span>-</span>
+                        <span>-</span>
+
+                        <input type="text" name="kondisi[vegetasi][catatan]" placeholder="Catatan...">
+                    </div>
+
+                    <div class="row-item">
+                        <label>8. Marker Post</label>
+                        <select name="marker_post">
+                            <option value="">Pilih</option>
+                            <option value="baik">Baik</option>
+                            <option value="rusak">Rusak</option>
+                        </select>
+                        <span>-</span><span>-</span><span>-</span><span>-</span>
+                        <input type="text" name="kondisi[marker_post][catatan]" placeholder="Catatan...">
+                    </div>
+
+                    <div class="row-item">
+                        <label>9. Hand Hole</label>
+                        <select name="hand_hole">
+                            <option value="">Pilih</option>
+                            <option value="baik">Baik</option>
+                            <option value="rusak">Rusak</option>
+                        </select>
+                        <span>-</span><span>-</span><span>-</span><span>-</span>
+                        <input type="text" name="kondisi[hand_hole][catatan]" placeholder="Catatan...">
+                    </div>
+
+                    <div class="row-item">
+                        <label>10. Aksesoris KU</label>
+                        <select name="aksesoris_ku">
+                            <option value="">Pilih</option>
+                            <option value="baik">Baik</option>
+                            <option value="rusak">Rusak</option>
+                        </select>
+                        <span>-</span><span>-</span><span>-</span><span>-</span>
+                        <input type="text" name="kondisi[aksesoris_ku][catatan]" placeholder="Catatan...">
+                    </div>
+
+                    <div class="row-item">
+                        <label>11. JC / ODP</label>
+                        <select name="jc_odp">
+                            <option value="">Pilih</option>
+                            <option value="baik">Baik</option>
+                            <option value="rusak">Rusak</option>
+                        </select>
+                        <span>-</span><span>-</span><span>-</span><span>-</span>
+                        <input type="text" name="kondisi[jc_odp][catatan]" placeholder="Catatan...">
+                    </div>
+
+
+
+
                 </div>
-
-                <label>Kondisi Penyangga</label>
-                <div class="form-group">
-                    <select name="penyangga[kondisi]">
-                        <option value="karat">Karat Ringan</option>
-                        <option value="retak">Retak</option>
-                        <option value="lepas">Hampir Lepas</option>
-                    </select>
-                </div>
-
-                <label>Kondisi Kabel</label>
-                <div class="form-group">
-                    <select name="penyangga[kabel]">
-                        <option value="aman">Kabel Aman</option>
-                        <option value="menurun">Kabel Menurun</option>
-                        <option value="tertarik">Kabel Tertarik</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <textarea name="kondisi[penyangga][catatan]" placeholder="Catatan....." rows="3"></textarea>
-                </div>
-                <hr>
-
-                <!-- 4. TIANG KU -->
-                <h4>4. Tiang KU</h4>
-                <div class="form-group">
-                    <select name="tiang[posisi]">
-                        <option value="tegak">Tegak</option>
-                        <option value="miring">Miring</option>
-                    </select>
-                </div>
-
-
-                <label>Kondisi Tiang</label>
-                <div class="form-group">
-                    <select name="tiang[kondisi]">
-                        <option value="aman">Aman</option>
-                        <option value="parah">Parah</option>
-                        <option value="sangat_parah">Sangat Parah</option>
-                    </select>
-                </div>
-
-
-                <label>Tingkat Kemiringan</label>
-                <div class="form-group">
-                    <select name="tiang[miring]">
-                        <option value="ringan">Ringan</option>
-                        <option value="sedang">Sedang</option>
-                        <option value="berat">Berat</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <textarea name="kondisi[tiang][catatan]" placeholder="Catatan....." rows="3"></textarea>
-                </div>
-                <hr>
-
-
-                <!-- 5. KABEL DI CLAMP -->
-
-                <h4>5. Kabel di Clamp</h4>
-                <div class="form-group">
-                    <select name="clamp[status]">
-                        <option value="baik">Baik</option>
-                        <option value="rusak">Ada Kerusakan</option>
-                    </select>
-                </div>
-
-
-                <label>Kondisi Kabel</label>
-                <div class="form-group">
-                    <select name="clamp[kondisi]">
-                        <option value="kendur">Kendur</option>
-                        <option value="tergesek">Tergesek</option>
-                        <option value="tertekan">Tertekan</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <textarea name="kondisi[clamp][catatan]" placeholder="Catatan....." rows="3"></textarea>
-
-                </div>
-                <hr>
-
-                <!-- 6. LINGKUNGAN -->
-                <h4>6. Lingkungan</h4>
-                <div class="form-group">
-                    <select name="lingkungan[status]">
-                        <option value="aman">Aman</option>
-                        <option value="tidak_aman">Tidak Aman</option>
-                    </select>
-                </div>
-
-
-                <label>Dampak Lingkungan</label>
-                <div class="form-group">
-                    <select name="lingkungan[dampak]">
-                        <option value="belum">Belum Terdampak</option>
-                        <option value="potensi">Berpotensi</option>
-                        <option value="sudah">Sudah Terdampak</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <textarea name="kondisi[lingkungan][catatan]" placeholder="Catatan....." rows="3"></textarea>
-
-                </div>
-                <hr>
-
-                <!-- 7. VEGETASI -->
-                <h4>7. Vegetasi</h4>
-                <div class="form-group">
-                    <select name="vegetasi[status]">
-                        <option value="aman">Aman</option>
-                        <option value="tidak_aman">Tidak Aman</option>
-                    </select>
-                </div>
-
-
-                <label>Jarak Vegetasi</label>
-                <div class="form-group">
-                    <select name="vegetasi[jarak]">
-                        <option value="dekat">Dekat</option>
-                        <option value="sentuh">Menyentuh</option>
-                        <option value="tekan">Menekan</option>
-                        <option value="tumbang">Risiko Tumbang</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <textarea name="kondisi[vegetasi][catatan]" placeholder="Catatan....." rows="3"></textarea>
-
-                </div>
-
-                <hr>
-
-                <h4>8. Marker Post / Patok</h4>
-                <div class="form-group">
-                    <select name="marker_post">
-                        <option value="baik">Baik</option>
-                        <option value="rusak">Rusak</option>
-                    </select>
-                </div>
-
-
             </div>
-            <div class="form-group">
-                <textarea name="kondisi[marker_post][catatan]" placeholder="Catatan....." rows="3"></textarea>
+            <hr>
 
-            </div>
+            <!-- ===================== C. PENGESAHAN ===================== -->
+            <div class="section">
+                <h3>C. Pengesahan</h3>
 
-            <h4>9. Hand Hole (HH)</h4>
-            <div class="form-group">
-                <select name="hand_hole">
-                    <option value="baik">Baik</option>
-                    <option value="rusak">Rusak</option>
-                </select>
-            </div>
+                <div class="grid">
 
-            <div class="form-group">
-                <textarea name="kondisi[hand_hole][catatan]"" placeholder="Catatan....." rows="3"></textarea>
+                    <!-- Prepared -->
+                    <div>
+                        <input type="text" name="prepared_by" id="prepared_by"
+                            value="{{ auth()->user()->username }}" readonly>
 
-            </div>
+                        <label>Tanda Tangan Prepared (Upload)</label>
+                        <input type="file" name="prepared_signature" accept="image/*">
 
-            <h4>10. Aksesoris KU</h4>
-            <div class="form-group">
-                <select name="aksesoris_ku">
-                    <option value="baik">Baik</option>
-                    <option value="rusak">Rusak</option>
-                </select>
-            </div>
+                        <p><b>atau tanda tangan manual:</b></p>
+                        <canvas id="canvas_prepared" width="320" height="160"></canvas>
+                        <input type="hidden" name="prepared_canvas" id="prepared_canvas">
+                        <button type="button" onclick="clearPrepared()">Clear</button>
+                    </div>
 
-            <div class="form-group">
-                <textarea name="kondisi[aksesoris_ku][catatan]" placeholder="Catatan....." rows="3"></textarea>
-
-            </div>
-
-            <h4>11. JC / ODP</h4>
-            <div class="form-group">
-                <select name="jc_odp">
-                    <option value="baik">Baik</option>
-                    <option value="rusak">Rusak</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <textarea name="kondisi[jc_odp][catatan]" placeholder="Catatan....." rows="3"></textarea>
-
-            </div>
-
-
-    </div>
-
-    <hr>
-    <hr>
-
-    <!-- ===================== C. PENGESAHAN ===================== -->
-    <div class="section">
-        <h3>C. Pengesahan</h3>
-
-        <div class="grid">
-
-            <!-- Prepared -->
-            <div>
-                <label>Prepared By</label>
-                <input type="text" name="prepared_by" id="prepared_by" readonly>
-
-                <label>Tanda Tangan Prepared (Upload)</label>
-                <input type="file" name="prepared_signature" accept="image/*">
-
-                <p><b>atau tanda tangan manual:</b></p>
-                <canvas id="canvas_prepared" width="320" height="160"></canvas>
-                <input type="hidden" name="prepared_canvas" id="prepared_canvas">
-                <button type="button" onclick="clearPrepared()">Clear</button>
-            </div>
-
-            <!-- Approved -->
-            {{-- <div>
+                    <!-- Approved -->
+                    {{-- <div>
                     <label>Approved By</label>
                     <select name="approved_by" class="select2">
                         <option value="">-- Pilih Approver --</option>
@@ -650,19 +669,19 @@
                     <button type="button" onclick="clearApproved()">Clear</button>
                 </div> --}}
 
-        </div>
-    </div>
+                </div>
+            </div>
 
-    <hr>
+            <hr>
 
-    <button type="submit" name="action" value="draft">
-        Simpan Draft
-    </button>
+            <button type="submit" name="action" value="draft">
+                Simpan Draft
+            </button>
 
-    <button type="submit" name="action" value="submit_ro">
-        Kirim ke Kepala RO
-    </button>
-    </form>
+            <button type="submit" name="action" value="submit_ro">
+                Kirim ke Kepala RO
+            </button>
+        </form>
 
 
 
@@ -678,11 +697,6 @@
     $('.select2').select2({
         placeholder: 'Cari...',
         allowClear: true
-    });
-
-    $('#nama_pelaksana').on('change.select2', function() {
-        const nama = $(this).val();
-        $('#prepared_by').val(nama);
     });
 </script>
 
@@ -745,5 +759,17 @@
         const canvas = document.getElementById("canvas_approved");
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    }
+
+
+    function toggleSection(id) {
+        const el = document.getElementById(id);
+
+        if (el.style.display === "none" || el.style.display === "") {
+            el.style.display = "block";
+        } else {
+            el.style.display = "none";
+        }
     }
 </script>

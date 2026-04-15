@@ -201,7 +201,7 @@
             @endauth
             <!-- Manajemen User -->
             @auth
-                @if (auth()->user()->role == 'admin')
+                @if (in_array(auth()->user()->role, ['admin', 'kepala_ro']))
                     <a href="/admin/users" class="card-link">
                         <div class="card">
                             <div class="icon"><i class="bi bi-people"></i></div>
@@ -240,16 +240,32 @@
             @endauth
 
             <!-- Laporan -->
-            <a href="{{ route('maintenance.info') }}" class="card-link">
-                <div class="card">
-                    <div class="icon"><i class="bi bi-bar-chart"></i></div>
-                    <h3>Laporan PM</h3>
-                    <p>Lihat rekap data, status pekerjaan, dan histori aktivitas.</p>
-                </div>
-            </a>
+            @auth
+                @if (in_array(auth()->user()->role, ['teknisi', 'kepala_ro']))
+                    <a href="{{ route('maintenance.info') }}" class="card-link">
+                        <div class="card">
+                            <div class="icon"><i class="bi bi-bar-chart"></i></div>
+                            <h3>Laporan PM</h3>
+                            <p>Lihat rekap data, status pekerjaan, dan histori aktivitas.</p>
+                        </div>
+                    </a>
+                @endif
+            @endauth
+
+            <!-- Segments -->
+            @auth
+                @if (auth()->user()->role == 'teknisi')
+                    <a href="/segments" class="card-link">
+                        <div class="card">
+                            <div class="icon"><i class="bi bi-diagram-3"></i></div>
+                            <h3>Segments</h3>
+                            <p>Kelola segment untuk pembagian area atau kategori dalam sistem preventive maintenance.</p>
+                        </div>
+                    </a>
+                @endif
+            @endauth
+
+
 
         </div>
-
-
-    </div>
-@endsection
+    @endsection

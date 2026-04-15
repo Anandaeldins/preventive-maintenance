@@ -70,40 +70,56 @@
 
                 <tbody>
 
-                    @foreach ($report->details as $detail)
-                        @php
-                            $status = json_decode($detail->status, true);
-                            $nilai = strtolower($status['status'] ?? '');
-                        @endphp
+                    @if ($report->details && count($report->details) > 0)
+                        @foreach ($report->details as $detail)
+                            @php
 
+                                $status = json_decode($detail->status, true);
+
+                                // ambil nilai dari berbagai kemungkinan key
+                                $nilai = strtolower(
+                                    $status['status'] ?? ($status['posisi'] ?? ($status['kondisi'] ?? '')),
+                                );
+
+                                $hasil = null;
+
+                                if ($nilai != '') {
+                                    if (in_array($nilai, ['ya', 'ada', 'rusak', 'tidak_aman', 'miring'])) {
+                                        $hasil = 'ya';
+                                    } else {
+                                        $hasil = 'tidak';
+                                    }
+                                }
+                            @endphp
+
+                            <tr>
+
+                                <td>
+                                    {{ ucfirst(str_replace('_', ' ', $detail->objek)) }}
+                                </td>
+
+                                <td class="text-center">
+                                    @if ($hasil === 'ya')
+                                        ✔
+                                    @endif
+                                </td>
+
+                                <td class="text-center">
+                                    @if ($hasil === 'tidak')
+                                        ✔
+                                    @endif
+                                </td>
+                                <td>
+                                    {{ $detail->catatan ?? '-' }}
+                                </td>
+
+                            </tr>
+                        @endforeach
+                    @else
                         <tr>
-
-                            <td>
-                                {{ ucfirst(str_replace('_', ' ', $detail->objek)) }}
-                            </td>
-
-                            <td class="text-center">
-
-                                @if (in_array($nilai, ['ya', 'baik', 'aman', 'ada', 'normal']))
-                                    ✔
-                                @endif
-
-                            </td>
-
-                            <td class="text-center">
-
-                                @if (in_array($nilai, ['tidak', 'rusak', 'tidak ada']))
-                                    ✔
-                                @endif
-
-                            </td>
-
-                            <td>
-                                {{ $detail->catatan ?? '-' }}
-                            </td>
-
+                            <td colspan="4" class="text-center">Tidak ada data</td>
                         </tr>
-                    @endforeach
+                    @endif
 
                 </tbody>
 

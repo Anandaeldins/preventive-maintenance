@@ -9,6 +9,8 @@ use App\Models\Regional;
 
 class Segment extends Model
 {
+    protected $table = 'segments';
+
     protected $fillable = [
         'nama_segment',
         'kode_segment',

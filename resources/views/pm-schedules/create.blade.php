@@ -323,22 +323,19 @@
                                 <div class="col-md-3">
 
                                     <label>Dibuat Oleh</label>
-                                    <select name="teknisi_1" class="form-select">
-                                        @foreach ($teknisis as $t)
-                                            <option value="{{ $t->id }}"
-                                                {{ old('teknisi_1') == $t->id ? 'selected' : '' }}>
-                                                {{ $t->username }}
-                                            </option>
-                                        @endforeach
-                                    </select>
 
-                                    <label class="mt-3">Teknisi </label>
+                                    <input type="text" class="form-control" value="{{ auth()->user()->username }}"
+                                        readonly>
+
+                                    <input type="hidden" name="teknisi_1" value="{{ auth()->user()->id }}">
+
+                                    {{-- <label class="mt-3">Teknisi </label>
                                     <select name="teknisi_2" class="form-select">
                                         <option value="">-- pilih --</option>
                                         @foreach ($teknisis as $t)
                                             <option value="{{ $t->id }}">{{ $t->username }}</option>
                                         @endforeach
-                                    </select>
+                                    </select> --}}
 
                                     {{-- NOTES FIELD --}}
                                     <label class="mt-3">Catatan</label>

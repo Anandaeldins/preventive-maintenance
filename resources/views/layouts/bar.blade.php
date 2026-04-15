@@ -5,6 +5,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <title>@yield('title', 'Dashboard')</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -237,14 +239,29 @@
 
 <body>
 
+
     <header>
         <div class="logo-circle">
             <img src="{{ asset('assets/image/logo_pgn.png') }}" alt="Logo">
         </div>
         <div class="menu">
-            <a href="/admin/dashboard" class="{{ request()->is('admin/dashboard') ? 'active' : '' }}">
-                Beranda
-            </a>
+            @auth
+                @php $role = auth()->user()->role; @endphp
+
+                @if ($role == 'admin')
+                    <a href="{{ route('admin.dashboard') }}"
+                        class="{{ request()->is('admin/dashboard') ? 'active' : '' }}">Beranda</a>
+                @elseif($role == 'teknisi')
+                    <a href="{{ route('teknisi.dashboard') }}"
+                        class="{{ request()->is('teknisi/dashboard') ? 'active' : '' }}">Beranda</a>
+                @elseif($role == 'kepala_ro')
+                    <a href="{{ route('kepalaro.dashboard') }}"
+                        class="{{ request()->is('approval/dashboard') ? 'active' : '' }}">Beranda</a>
+                @elseif($role == 'pusat')
+                    <a href="{{ route('pusat.dashboard') }}"
+                        class="{{ request()->is('approval/pusat-reports') ? 'active' : '' }}">Beranda</a>
+                @endif
+            @endauth
 
             <a href="/admin/admin-fitur" class="{{ request()->is('admin/admin-fitur') ? 'active' : '' }}">
                 Fitur
@@ -269,7 +286,20 @@
                 </div>
 
                 <div class="profile-dropdown" id="profileDropdown">
-                    <a href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                    @auth
+                        @php $role = auth()->user()->role; @endphp
+
+                        @if ($role == 'admin')
+                            <a href="{{ route('admin.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                        @elseif($role == 'teknisi')
+                            <a href="{{ route('teknisi.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                        @elseif($role == 'kepala_ro')
+                            <a href="{{ route('kepalaro.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                        @elseif($role == 'pusat')
+                            <a href="{{ route('pusat.dashboard') }}"><i class="bi bi-speedometer2"></i>
+                                Dashboard</a>
+                        @endif
+                    @endauth
                     <a href="{{ route('account.index') }}"><i class="bi bi-person-gear"></i> Account Settings</a>
                     <a href="{{ route('settings.index') }}"><i class="bi bi-gear"></i> Pengaturan</a>
                     <form method="POST" action="{{ route('logout') }}">

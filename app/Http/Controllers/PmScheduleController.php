@@ -56,16 +56,23 @@
         | CREATE FORM
         |--------------------------------------------------------------------------
         */
-    public function create()
-    {
-        $segments = Segment::orderBy('nama_segment')->get();
+   public function create()
+{
+    $user = Auth::user();
 
-        $teknisis = User::where('role','teknisi')->get();
+    // ✅ Segment hanya sesuai regional user login
+    $segments = Segment::where('regional_id', $user->regional_id)
+                ->orderBy('nama_segment')
+                ->get();
 
-        return view('pm-schedules.create',
-            compact('segments','teknisis'));
-    }
+    // ✅ (optional tapi disarankan) teknisi sesuai regional juga
+    $teknisis = User::where('role', 'teknisi')
+                ->where('regional_id', $user->regional_id)
+                ->get();
 
+    return view('pm-schedules.create',
+        compact('segments','teknisis'));
+}
         /*
         |--------------------------------------------------------------------------
         | STORE SCHEDULE
@@ -324,7 +331,8 @@ public function pendingSchedules()
 
     $schedule->update([
         'status' => 'approved',
-        'signature_ro' => $signaturePath
+        'signature_ro' => $signaturePath,
+        'approved_by' => Auth::id()
     
     ]);
 
@@ -480,8 +488,7 @@ public function approveGroup(Request $request)
         ->update([
             'status' => 'approved',
             'signature_ro' => $signaturePath,
-            'approved_by' => auth()->id()
-        ]);
+            'approved_by' => Auth::id()        ]);
 
     return back()->with('success', 'Schedule bulan ini disetujui');
 }

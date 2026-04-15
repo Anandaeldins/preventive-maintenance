@@ -22,4 +22,8 @@ class InspeksiFmeaDetail extends Model
     {
         return $this->belongsTo(InspeksiHeader::class, 'inspeksi_id');
     }
+    public function header()
+{
+    return $this->belongsTo(\App\Models\InspeksiHeader::class, 'inspeksi_id');
+}
 }

@@ -1,109 +1,262 @@
 @extends('layouts.bar')
 
+@push('style')
+    <style>
+        /* WRAPPER */
+        .fmea-wrapper {
+            padding-top: 20px;
+        }
+
+        .fmea-card {
+            background: var(--card);
+            border-radius: 18px;
+            padding: 28px;
+            box-shadow: 0 20px 50px rgba(37, 99, 235, 0.15);
+        }
+
+        /* HEADER */
+        .fmea-header h4 {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .fmea-header p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* FILTER BAR */
+        .pm-filter-bar {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin-bottom: 20px;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.1);
+        }
+
+        .pm-filter-left {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pm-filter-select {
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+            padding: 8px 12px;
+            background: white;
+        }
+
+        /* BUTTON */
+        .pm-filter-apply {
+            background: linear-gradient(135deg, #60a5fa, #2563eb);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 18px;
+            font-weight: 600;
+        }
+
+        /* TABLE */
+        .table-modern table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-modern th {
+            text-align: left;
+            font-size: 13px;
+            color: var(--muted);
+            padding-bottom: 10px;
+        }
+
+        .table-modern td {
+            padding: 14px 0;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        #pendingTable tr:hover {
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        /* BADGE */
+        .badge-modern {
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-modern.warning {
+            background: #fef9c3;
+            color: #ca8a04;
+        }
+
+        .badge-modern.success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-modern.danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        /* BUTTON ACTION */
+        .btn-outline-modern {
+            border: 1px solid #2563eb;
+            color: #2563eb;
+            border-radius: 8px;
+        }
+
+        .btn-outline-modern:hover {
+            background: #2563eb;
+            color: white;
+        }
+
+        /* ALERT */
+        .alert-modern {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .alert-modern.success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .alert-modern.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+    </style>
+@endpush
+
 @section('content')
-    <div class="container">
-        <h1>Pending Schedules</h1>
-        {{-- ================= ALERT SUCCESS ================= --}}
-        @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <strong>Berhasil!</strong> {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+    <div class="fmea-wrapper">
+        <div class="fmea-card">
 
-        {{-- ================= ALERT ERROR (VALIDATION) ================= --}}
-        @if ($errors->any())
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>Terjadi Kesalahan:</strong>
-                <ul class="mb-0 mt-1">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
-        <div class="pm-filter-bar">
-
-            <div class="pm-filter-left">
-
-
-
-                <select id="filterPriority" class="pm-filter-select">
-                    <option value="">Prioritas</option>
-                    <option value="KRITIS">KRITIS</option>
-                    <option value="SEDANG">SEDANG</option>
-                    <option value="RENDAH">RENDAH</option>
-                </select>
-
-                <select id="sortDate" class="pm-filter-select">
-                    <option value="">Sort by Date</option>
-                    <option value="asc">Tanggal Terdekat</option>
-                    <option value="desc">Tanggal Terjauh</option>
-                </select>
-
-                <select id="filterPIC" class="pm-filter-select">
-                    <option value="">PIC</option>
-
-                    @foreach ($schedules as $group)
-                        @php $first = $group->first(); @endphp
-                        <option value="{{ $first->creator->username }}">
-                            {{ $first->creator->username }}
-                        </option>
-                    @endforeach
-
-                </select>
-
+            <div class="fmea-header">
+                <h4>Pending Schedules</h4>
+                <p>Daftar jadwal yang menunggu approval</p>
             </div>
 
-            <div class="pm-filter-right">
-                <button id="applyFilter" class="pm-filter-apply">
-                    <i class="fas fa-filter"></i> Terapkan
-                </button>
+            {{-- ALERT --}}
+            @if (session('success'))
+                <div class="alert-modern success">{{ session('success') }}</div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert-modern error">
+                    <strong>Terjadi Kesalahan:</strong>
+                    <ul class="mb-0 mt-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            {{-- FILTER --}}
+            <div class="pm-filter-bar">
+                <div class="pm-filter-left">
+
+                    <select id="filterPriority" class="pm-filter-select">
+                        <option value="">Prioritas</option>
+                        <option value="KRITIS">KRITIS</option>
+                        <option value="SEDANG">SEDANG</option>
+                        <option value="RENDAH">RENDAH</option>
+                    </select>
+
+                    <select id="sortDate" class="pm-filter-select">
+                        <option value="">Sort by Date</option>
+                        <option value="asc">Tanggal Terdekat</option>
+                        <option value="desc">Tanggal Terjauh</option>
+                    </select>
+
+                    <select id="filterPIC" class="pm-filter-select">
+                        <option value="">PIC</option>
+
+                        @foreach ($schedules as $group)
+                            @php $first = $group->first(); @endphp
+                            <option value="{{ $first->creator->username }}">
+                                {{ $first->creator->username }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                </div>
+
+                <div>
+                    <button id="applyFilter" class="pm-filter-apply">
+                        <i class="fas fa-filter"></i> Terapkan
+                    </button>
+                </div>
+            </div>
+
+            {{-- TABLE --}}
+            <div class="table-modern">
+                <table id="pendingTable">
+                    <thead>
+                        <tr>
+                            <th>Segment</th>
+                            <th>Date</th>
+                            <th>Diajukan oleh</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach ($schedules as $group)
+                            @php $first = $group->first(); @endphp
+
+                            <tr>
+
+                                <td>{{ $first->segment->nama_segment }}</td>
+
+                                <td>{{ \Carbon\Carbon::parse($first->planned_date)->translatedFormat('F Y') }}</td>
+
+                                <td>{{ $first->creator->username }}</td>
+
+                                <td>
+                                    @if ($first->priority == 'KRITIS')
+                                        <span class="badge-modern danger">KRITIS</span>
+                                    @elseif ($first->priority == 'SEDANG')
+                                        <span class="badge-modern warning">SEDANG</span>
+                                    @else
+                                        <span class="badge-modern success">RENDAH</span>
+                                    @endif
+                                </td>
+
+                                <td>
+                                    <span class="badge-modern warning">Pending</span>
+                                </td>
+
+                                <td>
+                                    <button class="btn btn-sm btn-outline-modern" data-bs-toggle="modal"
+                                        data-bs-target="#approveModal{{ $first->id }}">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
 
         </div>
-
-        <table class="table table-striped" id="pendingTable">
-            <thead>
-                <tr>
-                    <th>Segment</th>
-                    <th>Date</th>
-                    <th>Diajukan oleh</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-
-                @foreach ($schedules as $group)
-                    @php
-                        $first = $group->first();
-                    @endphp
-
-
-                    <tr>
-                        <td>{{ $first->segment->nama_segment }}</td>
-                        <td>{{ \Carbon\Carbon::parse($first->planned_date)->translatedFormat('F Y') }}</td>
-                        <td>{{ $first->creator->username }}</td>
-                        <td>{{ $first->priority }}</td>
-                        <td><span class="badge bg-warning">Pending</span></td>
-
-                        <td>
-                            <button class="btn btn-success btn-sm" data-bs-toggle="modal"
-                                data-bs-target="#approveModal{{ $first->id }}">
-                                <i class="fas fa-check"></i>
-                            </button>
-                        </td>
-
-                    </tr>
-                @endforeach
-
-            </tbody>
-        </table>
     </div>
+
     @foreach ($schedules as $group)
         @php
             $first = $group->first();
@@ -200,51 +353,8 @@
             </div>
         </div>
     @endforeach
-    <style>
-        .pm-filter-bar {
-            background: #f5f7fa;
-            border-radius: 12px;
-            padding: 15px 18px;
-            margin-bottom: 20px;
-
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        .pm-filter-left {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .pm-filter-btn {
-            background: white;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 7px 14px;
-            font-size: 14px;
-        }
-
-        .pm-filter-select {
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            padding: 7px 12px;
-            font-size: 14px;
-            background: white;
-        }
-
-        .pm-filter-apply {
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 18px;
-        }
-    </style>
-
+@endsection
+@push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 
     <script>
@@ -318,4 +428,4 @@
 
         });
     </script>
-@endsection
+@endpush

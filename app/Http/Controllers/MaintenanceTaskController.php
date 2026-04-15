@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
  use App\Models\Segment;
  use App\Models\PmSchedule;
  use App\Models\User;
+ use Illuminate\Http\Request;
 class MaintenanceTaskController extends Controller
 {
 
@@ -36,23 +37,66 @@ public function show($schedule)
 {
     $schedule = PmSchedule::with('segment')->findOrFail($schedule);
 
-    $teknisi = User::where('role','teknisi')->get();
+    $user = Auth::user();
+
+    // ✅ teknisi sesuai regional
+    $teknisi = User::where('role','teknisi')
+        ->where('regional_id', $user->regional_id)
+        ->get();
+
     $approver = User::whereIn('role',['kepala_ro','admin'])->get();
 
     return view('fmea-demo', compact('schedule','teknisi','approver'));
+    if ($schedule->segment->regional_id != Auth::user()->regional_id) {
+    abort(403, 'Tidak punya akses ke schedule ini');
+}
 }
 
-public function info()
+public function info(Request $request)
 {
-    $segments = Segment::with(['schedules' => function ($query) {
+    $user = Auth::user();
 
-        $query->where('status','approved')
-              ->with('inspeksiHeader')
-              ->orderBy('planned_date');
+    $query = Segment::with(['schedules' => function ($q) use ($request) {
 
-    }])->get();
+        $q->where('status','approved')
+          ->with('inspeksiHeader');
 
-    return view('maintenance.info', compact('segments'));
+        // 🔥 filter tanggal
+        if ($request->from) {
+            $q->whereDate('planned_date', '>=', $request->from);
+        }
+
+        if ($request->to) {
+            $q->whereDate('planned_date', '<=', $request->to);
+        }
+
+        // 🔥 SORTING DI SINI
+        if ($request->sort == 'asc') {
+            $q->orderBy('planned_date', 'asc');
+        } elseif ($request->sort == 'desc') {
+            $q->orderBy('planned_date', 'desc');
+        } else {
+            $q->orderBy('planned_date', 'asc'); // default
+        }
+
+    }])
+
+    ->where('regional_id', $user->regional_id);
+
+    // search
+    if ($request->search) {
+        $query->where('nama_segment', 'like', '%' . $request->search . '%');
+    }
+
+    // filter segment
+    if ($request->segment) {
+        $query->where('id', $request->segment);
+    }
+
+    $segments = $query->get();
+
+    $allSegments = Segment::where('regional_id', $user->regional_id)->get();
+
+    return view('maintenance.info', compact('segments','allSegments'));
 }
-
 }

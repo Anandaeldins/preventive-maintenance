@@ -67,7 +67,7 @@
 
                         </div>
                         <div class="table-responsive">
-                            <table class="table table-bordered table-hover" id="schedulesTable">
+                            <table class="table align-middle mt-3 custom-table" id="schedulesTable">
                                 <thead class="table-light">
                                     <tr>
                                         <th>No</th>
@@ -399,17 +399,170 @@
     @endsection
     @push('style')
         <style>
-            .pm-filter-bar {
-                background: #f5f7fa;
+            .modal-content {
+                border-radius: 16px;
+                border: none;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            }
+
+            .modal-header {
+                border-bottom: none;
+            }
+
+            .modal-footer {
+                border-top: none;
+            }
+
+            .custom-table {
+                border-collapse: separate;
+                border-spacing: 0 10px;
+            }
+
+            .custom-table thead th {
+                font-size: 12px;
+                text-transform: uppercase;
+                color: #64748b;
+                border: none;
+            }
+
+            .custom-table tbody tr {
+                background: #ffffff;
                 border-radius: 12px;
-                padding: 15px 18px;
+                transition: 0.2s;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+            }
+
+            .custom-table tbody tr:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+            }
+
+            .custom-table td {
+                padding: 16px;
+                border: none;
+            }
+
+            .badge {
+                padding: 6px 14px;
+                border-radius: 999px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+
+            .badge.bg-danger {
+                background: #fee2e2 !important;
+                color: #dc2626 !important;
+            }
+
+            .badge.bg-warning {
+                background: #fef9c3 !important;
+                color: #ca8a04 !important;
+            }
+
+            .badge.bg-success {
+                background: #dcfce7 !important;
+                color: #16a34a !important;
+            }
+
+            .badge.bg-info {
+                background: #e0f2fe !important;
+                color: #0284c7 !important;
+            }
+
+            .badge.bg-primary {
+                background: #e0e7ff !important;
+                color: #4f46e5 !important;
+            }
+
+            .card {
+                border: none;
+                border-radius: 18px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+                overflow: hidden;
+            }
+
+            .card-header {
+                background: linear-gradient(135deg, #4A90E2, #2563eb) !important;
+                padding: 18px 24px;
+                font-size: 18px;
+                font-weight: 600;
+            }
+
+            .card-header h5 {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .pm-filter-bar {
+                background: #ffffff;
+                border-radius: 14px;
+                padding: 16px 20px;
                 margin-bottom: 20px;
 
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
 
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            }
+
+            .pm-filter-select {
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 8px 12px;
+                background: #f8fafc;
+                transition: 0.2s;
+            }
+
+            .pm-filter-select:focus {
+                border-color: #3b82f6;
+                background: white;
+                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            }
+
+            .pm-filter-apply {
+                background: linear-gradient(135deg, #4A90E2, #2563eb);
+                border: none;
+                border-radius: 10px;
+                padding: 8px 18px;
+                color: white;
+                font-weight: 500;
+                transition: 0.2s;
+            }
+
+            .pm-filter-apply:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
+            }
+
+            .pm-filter-select {
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 8px 12px;
+                background: #f8fafc;
+                transition: 0.2s;
+            }
+
+            .pm-filter-select:focus {
+                border-color: #3b82f6;
+                background: white;
+                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            }
+
+            .pm-filter-apply {
+                background: linear-gradient(135deg, #4A90E2, #2563eb);
+                border: none;
+                border-radius: 10px;
+                padding: 8px 18px;
+                color: white;
+                font-weight: 500;
+                transition: 0.2s;
+            }
+
+            .pm-filter-apply:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
             }
 
             .pm-filter-left {
@@ -464,9 +617,9 @@
             }
 
             .action-btn {
-                width: 36px;
-                height: 36px;
-                border-radius: 10px;
+                width: 38px;
+                height: 38px;
+                border-radius: 12px;
                 border: none;
                 display: flex;
                 align-items: center;
@@ -476,6 +629,12 @@
                 cursor: pointer;
                 transition: all .25s ease;
                 box-shadow: 0 4px 10px rgba(0, 0, 0, .12);
+                transition: 0.2s;
+            }
+
+            .action-btn:hover {
+                transform: scale(1.08);
+                box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
             }
 
             .action-btn i {

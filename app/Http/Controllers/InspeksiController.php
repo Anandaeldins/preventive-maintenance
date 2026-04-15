@@ -7,7 +7,7 @@ use App\Models\PmSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-
+use App\Models\InspeksiDetail;
 class InspeksiController extends Controller
 {
     /**
@@ -27,76 +27,247 @@ public function store(Request $request)
         ? 'pending_ro'
         : 'draft';
 
-    DB::transaction(function () use ($request, $schedule, $status) {
+    try {
 
-        $inspeksi = InspeksiHeader::create([
-            'segment_inspeksi' => $request->segment_inspeksi,
-            'jalur_fo' => $request->jalur_fo,
-            'nama_pelaksana' => $request->nama_pelaksana,
-            'driver' => $request->driver,
-            'cara_patroli' => $request->cara_patroli,
-            'cara_patroli_lainnya' => $request->cara_patroli_lainnya,
-            'tanggal_inspeksi' => $request->tanggal_inspeksi,
-            'prepared_by' => Auth::id(),
-            'approved_by' => $request->approved_by,
-            'prepared_signature' => $request->prepared_canvas,
-            'approved_signature' => $request->approved_canvas,
-            'schedule_id' => $schedule->id,
-            'status_workflow' => $status
-        ]);
+        DB::transaction(function () use ($request, $schedule, $status) {
 
-        $objects = [
-            'kabel_putus',
-            'kabel_expose',
-            'penyangga',
-            'tiang',
-            'clamp',
-            'lingkungan',
-            'vegetasi',
-            'marker_post',
-            'hand_hole',
-            'aksesoris_ku',
-            'jc_odp'
-        ];
+            // ================= INIT =================
+            $results = [];
 
-        foreach ($objects as $obj) {
+            $jalurFO = $request->jalur_fo ?? 'non_backbone';
 
-            if ($request->has($obj)) {
+            $rpnMax = [
+                'kabel_putus' => 15,
+                'kabel_expose' => 60,
+                'penyangga' => 60,
+                'tiang' => 30,
+                'clamp' => 24,
+                'lingkungan' => 75,
+                'vegetasi' => 45,
+            ];
 
-                $data = $request->$obj;
+            $adjustSeverity = function ($S) use ($jalurFO) {
+                return ($jalurFO === 'backbone') ? min($S + 1, 5) : $S;
+            };
 
-                if (!is_array($data)) {
-                    $data = ['status' => $data];
+           $hitung = function($item, $S, $O, $D) use (&$results) {
+
+    $RPN = $S * $O * $D;
+
+    // ✅ MAX GLOBAL FMEA
+    $maxRPN = 125;
+
+    $index = $RPN / $maxRPN;
+
+    $results[] = [
+        'item' => $item,
+        'S' => $S,
+        'O' => $O,
+        'D' => $D,
+        'RPN' => $RPN,
+        'index' => round($index, 2)
+    ];
+};
+
+            // ================= 7 ITEM =================
+
+            if(strtolower($request->input('kabel_putus.status','')) === 'ya'){
+                $S = match ($request->input('kabel_putus.dampak')) {
+                    'down' => 5,
+                    'sebagian' => 4,
+                    'normal' => 3,
+                    default => 2
+                };
+                $S = $adjustSeverity($S);
+                $D = $request->input('kabel_putus.backup') === 'ada' ? 2 : 1;
+                $O = $this->hitungOccurrence($request->segment_inspeksi,'kabel_putus','status','ya');
+                $hitung('kabel_putus', $S, $O, $D);
+            }
+
+            if(strtolower($request->input('kabel_expose.status','')) === 'ada'){
+                $S = match ($request->input('kabel_expose.pelindung')) {
+                    'rusak' => 4,
+                    'retak' => 3,
+                    'utuh' => 2,
+                    default => 1
+                };
+                $S = $adjustSeverity($S);
+                $D = match ($request->input('kabel_expose.lingkungan')) {
+                    'beban' => 3,
+                    'tanah_air' => 2,
+                    'aman' => 1,
+                    default => 2
+                };
+                $O = $this->hitungOccurrence($request->segment_inspeksi,'kabel_expose','status','ada');
+                $hitung('kabel_expose', $S, $O, $D);
+            }
+
+            if(strtolower($request->input('penyangga.status','')) === 'rusak'){
+                $S = match ($request->input('penyangga.kondisi')) {
+                    'lepas' => 4,
+                    'retak' => 3,
+                    'karat' => 2,
+                    default => 1
+                };
+                $S = $adjustSeverity($S);
+                $D = match ($request->input('penyangga.kabel')) {
+                    'tertarik' => 3,
+                    'menurun' => 2,
+                    'aman' => 1,
+                    default => 2
+                };
+                $O = $this->hitungOccurrence($request->segment_inspeksi,'penyangga','status','rusak');
+                $hitung('penyangga', $S, $O, $D);
+            }
+
+            if(strtolower($request->input('tiang.posisi','')) === 'miring'){
+                $S = match ($request->input('tiang.miring')) {
+                    'berat' => 4,
+                    'sedang' => 3,
+                    'ringan' => 2,
+                    default => 1
+                };
+                $S = $adjustSeverity($S);
+                $D = $request->input('tiang.kondisi') === 'parah' ? 2 : 1;
+                $O = $this->hitungOccurrence($request->segment_inspeksi,'tiang','posisi','miring');
+                $hitung('tiang', $S, $O, $D);
+            }
+
+            if(strtolower($request->input('clamp.status','')) === 'rusak'){
+                $S = match ($request->input('clamp.kondisi')) {
+                    'tertekan' => 4,
+                    'tergesek' => 3,
+                    'kendur' => 2,
+                    default => 1
+                };
+                $S = $adjustSeverity($S);
+                $D = 2;
+                $O = $this->hitungOccurrence($request->segment_inspeksi,'clamp','status','rusak');
+                $hitung('clamp', $S, $O, $D);
+            }
+
+            if(strtolower($request->input('lingkungan.status','')) === 'tidak_aman'){
+                $S = match ($request->input('lingkungan.dampak')) {
+                    'sudah' => 4,
+                    'potensi' => 3,
+                    'belum' => 2,
+                    default => 1
+                };
+                $S = $adjustSeverity($S);
+                $D = 3;
+                $O = $this->hitungOccurrence($request->segment_inspeksi,'lingkungan','status','tidak_aman');
+                $hitung('lingkungan', $S, $O, $D);
+            }
+
+            if(strtolower($request->input('vegetasi.status','')) === 'tidak_aman'){
+                $S = match ($request->input('vegetasi.jarak')) {
+                    'tumbang' => 4,
+                    'tekan' => 3,
+                    'sentuh' => 2,
+                    'dekat' => 1,
+                    default => 1
+                };
+                $S = $adjustSeverity($S);
+                $D = 3;
+                $O = $this->hitungOccurrence($request->segment_inspeksi,'vegetasi','status','tidak_aman');
+                $hitung('vegetasi', $S, $O, $D);
+            }
+
+            if(count($results) === 0){
+                throw new \Exception('Tidak ada kondisi untuk FMEA');
+            }
+
+            // ================= PRIORITAS =================
+            $maxIndex = collect($results)->max('index');
+
+            if($maxIndex >= 0.8){
+                $priority = 'KRITIS';
+                $schedulePm = 'minimal pm 3x sebulan';
+            }elseif($maxIndex >= 0.4){
+                $priority = 'SEDANG';
+                $schedulePm = 'minimal pm 2x sebulan';
+            }else{
+                $priority = 'RENDAH';
+                $schedulePm = 'minimal pm 1x sebulan';
+            }
+
+            // ================= SIMPAN HEADER =================
+            $inspeksi = InspeksiHeader::create([
+                'segment_inspeksi' => $request->segment_inspeksi,
+                'jalur_fo' => $request->jalur_fo,
+                'nama_pelaksana' => $request->nama_pelaksana,
+                'driver' => $request->driver,
+                'cara_patroli' => $request->cara_patroli,
+                'cara_patroli_lainnya' => $request->cara_patroli_lainnya,
+                'tanggal_inspeksi' => $request->tanggal_inspeksi,
+                'priority' => $priority,
+                'schedule_pm' => $schedulePm,
+                'prepared_by' => Auth::id(),
+                'approved_by' => $request->approved_by,
+                'prepared_signature' => $request->prepared_canvas,
+                'approved_signature' => $request->approved_canvas,
+                'schedule_id' => $schedule->id,
+                'status_workflow' => $status
+            ]);
+
+            // ================= SIMPAN DETAIL =================
+            foreach (['kabel_putus','kabel_expose','penyangga','tiang','clamp','lingkungan','vegetasi'] as $obj) {
+                if ($request->has($obj)) {
+                    $inspeksi->details()->create([
+                        'objek' => $obj,
+                        'status' => json_encode($request->$obj)
+                    ]);
                 }
+            }
 
-                $inspeksi->details()->create([
-                    'objek' => $obj,
-                    'status' => json_encode($data),
-                    'catatan' => $request->kondisi[$obj]['catatan'] ?? null
+            // ================= SIMPAN FMEA =================
+            foreach ($results as $r) {
+                $inspeksi->fmeaDetails()->create([
+                    'item' => $r['item'],
+                    'severity' => $r['S'],
+                    'occurrence' => $r['O'],
+                    'detection' => $r['D'],
+                    'rpn' => $r['RPN'],
+                    'risk_index' => $r['index'],
                 ]);
             }
-        }
 
-        if ($request->has('kondisi_umum')) {
-            $inspeksi->kondisiUmum()->create($request->kondisi_umum);
-        }
+        });
 
-        if ($request->has('fmea_details')) {
-            foreach ($request->fmea_details as $detail) {
-                $inspeksi->fmeaDetails()->create($detail);
-            }
-        }
+        return redirect('/tasks')->with('success', 'Laporan berhasil disimpan');
 
-    });
-
-    return redirect('/tasks')->with(
-        'success',
-        'Laporan berhasil disimpan'
-    );
-
-
-
+    } catch (\Exception $e) {
+        return back()->with('error', $e->getMessage());
+    }
 }
+private function hitungOccurrence($segment, $objek, $field, $value)
+{
+    $inspeksiIds = InspeksiHeader::whereRaw('LOWER(segment_inspeksi) = ?', [strtolower($segment)])
+        ->whereMonth('created_at', now()->month)
+        ->whereYear('created_at', now()->year)
+        ->pluck('id');
+
+    $details = InspeksiDetail::whereIn('inspeksi_id', $inspeksiIds)
+        ->where('objek', $objek)
+        ->get();
+
+    $jumlah = 0;
+
+    foreach ($details as $d) {
+        $status = json_decode($d->status, true);
+        if (isset($status[$field]) && $status[$field] == $value) {
+            $jumlah++;
+        }
+    }
+
+    if ($jumlah >= 5) return 5;
+    if ($jumlah >= 3) return 4;
+    if ($jumlah >= 2) return 3;
+    if ($jumlah == 1) return 2;
+
+    return 1;
+}
+
 
     /**
      * Submit inspection for RO approval (draft → pending_ro)
@@ -163,7 +334,7 @@ public function store(Request $request)
 
     $report->update([
         'approved_signature' => $request->signature_ro,
-         // simpan user yang approve
+        'approved_by' => Auth::id(),// simpan user yang approve
         'status_workflow' => 'pending_pusat'
     ]);
 

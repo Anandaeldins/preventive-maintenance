@@ -13,7 +13,7 @@ class LoginController extends Controller
         return view('auth.login');
     }
 
-   public function login(Request $request)
+  public function login(Request $request)
 {
     $credentials = $request->validate([
         'email'    => 'required|email',
@@ -23,13 +23,21 @@ class LoginController extends Controller
     if (Auth::attempt($credentials)) {
         $request->session()->regenerate();
 
-        // Redirect based on role
-        $user = Auth::user();
-        if ($user->role === 'admin') {
-            return redirect('/admin/dashboard');
-        } else {
-            return redirect('/');
+        $role = Auth::user()->role;
+
+        // 🔥 redirect sesuai role
+        if ($role == 'admin') {
+            return redirect()->route('admin.dashboard');
+        } elseif ($role == 'teknisi') {
+            return redirect()->route('teknisi.dashboard');
+        } elseif ($role == 'kepala_ro') {
+            return redirect()->route('kepalaro.dashboard');
+        } elseif ($role == 'pusat') {
+            return redirect()->route('pusat.dashboard');
         }
+
+        // fallback
+        return redirect('/');
     }
 
     return back()->withErrors([
