@@ -1,13 +1,19 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Models\InspeksiKondisiUmum;
 use App\Models\InspeksiHeader;
 use App\Models\PmSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\InspeksiDetail;
+use App\Models\InspeksiImage;
+use App\Http\Controllers\Teknisi\FmeaController;
+
+use Carbon\Carbon;
+
+
 class InspeksiController extends Controller
 {
     /**
@@ -18,8 +24,10 @@ public function store(Request $request)
     $request->validate([
         'segment_inspeksi' => 'required|string|max:150',
         'tanggal_inspeksi' => 'required|date',
-        'schedule_id' => 'required|exists:pm_schedules,id'
+        'schedule_id' => 'required|exists:pm_schedules,id',
+        'images.*' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
     ]);
+
 
     $schedule = PmSchedule::findOrFail($request->schedule_id);
 
@@ -191,6 +199,10 @@ public function store(Request $request)
                 $schedulePm = 'minimal pm 1x sebulan';
             }
 
+            if (!$request->signature_teknisi) {
+    return back()->with('error', 'Tanda tangan wajib diisi!');
+}
+
             // ================= SIMPAN HEADER =================
             $inspeksi = InspeksiHeader::create([
                 'segment_inspeksi' => $request->segment_inspeksi,
@@ -204,7 +216,7 @@ public function store(Request $request)
                 'schedule_pm' => $schedulePm,
                 'prepared_by' => Auth::id(),
                 'approved_by' => $request->approved_by,
-                'prepared_signature' => $request->prepared_canvas,
+                'prepared_signature' => $request->signature_teknisi,               
                 'approved_signature' => $request->approved_canvas,
                 'schedule_id' => $schedule->id,
                 'status_workflow' => $status
@@ -215,7 +227,9 @@ public function store(Request $request)
                 if ($request->has($obj)) {
                     $inspeksi->details()->create([
                         'objek' => $obj,
-                        'status' => json_encode($request->$obj)
+                        'status' => json_encode($request->$obj),
+                            'catatan' => $request->kondisi[$obj]['catatan'] ?? null
+
                     ]);
                 }
             }
@@ -231,6 +245,37 @@ public function store(Request $request)
                     'risk_index' => $r['index'],
                 ]);
             }
+            // ================= SIMPAN KONDISI UMUM =================
+                            InspeksiKondisiUmum::create([
+                'inspeksi_id' => $inspeksi->id,
+                'marker_post' => $request->marker_post,
+                'hand_hole' => $request->hand_hole,
+                'aksesoris_ku' => $request->aksesoris_ku,
+                'jc_odp' => $request->jc_odp,
+
+                'catatan_marker_post' => $request->kondisi['marker_post']['catatan'] ?? null,
+                'catatan_hand_hole' => $request->kondisi['hand_hole']['catatan'] ?? null,
+                'catatan_aksesoris_ku' => $request->kondisi['aksesoris_ku']['catatan'] ?? null,
+                'catatan_jc_odp' => $request->kondisi['jc_odp']['catatan'] ?? null,
+            ]);
+                        // ================== 🔥 TAMBAH INI ==================
+            if ($request->hasFile('images')) {
+
+                foreach ($request->file('images') as $file) {
+
+                    $path = $file->store('inspeksi_images', 'public');
+
+                    InspeksiImage::create([
+                        'inspeksi_header_id' => $inspeksi->id,
+                        'image_path' => $path
+                    ]);
+
+                }
+
+            }
+                
+    
+
 
         });
 
@@ -330,11 +375,16 @@ private function hitungOccurrence($segment, $objek, $field, $value)
 
   public function approveByRo(Request $request,$id)
 {
-    $report = InspeksiHeader::findOrFail($id);
+    $report = InspeksiHeader::with('creator')->findOrFail($id);
+
+    // 🔒 VALIDASI REGIONAL
+    if ($report->creator->regional_id !== Auth::user()->regional_id) {
+        return back()->with('error','Tidak boleh approve laporan beda regional.');
+    }
 
     $report->update([
         'approved_signature' => $request->signature_ro,
-        'approved_by' => Auth::id(),// simpan user yang approve
+        'approved_by' => Auth::id(),
         'status_workflow' => 'pending_pusat'
     ]);
 
@@ -364,11 +414,21 @@ public function approveByPusat($id)
         return back()->with('error','Report tidak dalam status pending pusat.');
     }
 
+    // update status
     $report->update([
         'status_workflow' => 'approved'
     ]);
 
-    return back()->with('success','Report disetujui oleh pusat.');
+    // =============================
+    // 🔥 TRIGGER FMEA OTOMATIS
+    // =============================
+  FmeaController::generateFromInspeksi(
+    $report->segment_inspeksi,
+    $report->tanggal_inspeksi
+);
+    
+
+    return back()->with('success','Report disetujui oleh pusat & FMEA dihitung.');
 }
 
 
@@ -385,8 +445,13 @@ public function rejectByPusat($id)
 
 public function pendingRO()
 {
+    $user = Auth::user();
+
     $reports = InspeksiHeader::where('status_workflow','pending_ro')
-        ->with(['pmSchedule.segment'])
+        ->whereHas('creator', function($q) use ($user) {
+            $q->where('regional_id', $user->regional_id);
+        })
+        ->with(['pmSchedule.segment', 'creator.regional'])
         ->latest()
         ->get();
 
@@ -396,9 +461,10 @@ public function pendingRO()
 public function pendingPusat()
 {
     $reports = InspeksiHeader::where('status_workflow','pending_pusat')
-        ->with(['pmSchedule.segment'])
-        ->latest()
-        ->get();
+
+    ->with(['pmSchedule.segment', 'creator.regional']) 
+    ->latest()
+    ->get();
 
     return view('approval.pusat-reports', compact('reports'));
 

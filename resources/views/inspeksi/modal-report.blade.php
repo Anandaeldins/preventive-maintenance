@@ -115,6 +115,72 @@
 
                             </tr>
                         @endforeach
+                        {{-- ================= KONDISI UMUM (4 ITEM) ================= --}}
+                        @if ($report->kondisiUmum)
+                            <tr>
+                                <td>Marker Post</td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->marker_post == 'rusak' ? '✔' : '' }}
+                                </td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->marker_post == 'baik' ? '✔' : '' }}
+                                </td>
+
+                                <td>
+                                    {{ $report->kondisiUmum->catatan_marker_post ?? '-' }}
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>Hand Hole</td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->hand_hole == 'rusak' ? '✔' : '' }}
+                                </td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->hand_hole == 'baik' ? '✔' : '' }}
+                                </td>
+
+                                <td>
+                                    {{ $report->kondisiUmum->catatan_hand_hole ?? '-' }}
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>Aksesoris KU</td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->aksesoris_ku == 'rusak' ? '✔' : '' }}
+                                </td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->aksesoris_ku == 'baik' ? '✔' : '' }}
+                                </td>
+
+                                <td>
+                                    {{ $report->kondisiUmum->catatan_aksesoris_ku ?? '-' }}
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>JC / ODP</td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->jc_odp == 'rusak' ? '✔' : '' }}
+                                </td>
+
+                                <td class="text-center">
+                                    {{ $report->kondisiUmum->jc_odp == 'baik' ? '✔' : '' }}
+                                </td>
+
+                                <td>
+                                    {{ $report->kondisiUmum->catatan_jc_odp ?? '-' }}
+                                </td>
+                            </tr>
+                        @endif
                     @else
                         <tr>
                             <td colspan="4" class="text-center">Tidak ada data</td>
@@ -128,7 +194,32 @@
         </div>
 
     </div>
+    <!-- ===================== BUKTI PM ===================== -->
+    <div class="card shadow-sm mb-4">
 
+        <div class="card-header bg-light fw-semibold">
+            Bukti PM (Foto Lapangan)
+        </div>
+
+        <div class="card-body">
+
+            @if ($report->images && count($report->images) > 0)
+
+                <div class="d-flex flex-wrap">
+
+                    @foreach ($report->images as $img)
+                        <img src="{{ asset('storage/' . $img->image_path) }}" width="150"
+                            class="me-2 mb-2 rounded shadow-sm">
+                    @endforeach
+
+                </div>
+            @else
+                <p class="text-muted">Tidak ada gambar</p>
+            @endif
+
+        </div>
+
+    </div>
 
     <!-- TANDA TANGAN -->
     <div class="card shadow-sm">
@@ -260,16 +351,26 @@
     if (canvas) {
 
         const ctx = canvas.getContext("2d");
-
         let drawing = false;
 
+        // ===== EVENT MOUSE =====
         canvas.addEventListener("mousedown", start);
         canvas.addEventListener("mouseup", stop);
         canvas.addEventListener("mousemove", draw);
 
+        // ===== EVENT TOUCH (HP) =====
+        canvas.addEventListener("touchstart", startTouch);
+        canvas.addEventListener("touchend", stop);
+        canvas.addEventListener("touchmove", drawTouch);
+
         function start(e) {
             drawing = true;
             draw(e);
+        }
+
+        function startTouch(e) {
+            drawing = true;
+            drawTouch(e);
         }
 
         function stop() {
@@ -279,7 +380,6 @@
         }
 
         function draw(e) {
-
             if (!drawing) return;
 
             const rect = canvas.getBoundingClientRect();
@@ -292,25 +392,63 @@
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
 
+        function drawTouch(e) {
+            if (!drawing) return;
+
+            e.preventDefault();
+
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+
+            ctx.lineWidth = 2;
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "#000";
+
+            ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
         }
 
         function saveSignature() {
+            document.getElementById("signature_ro").value = canvas.toDataURL();
+        }
 
-            document.getElementById("signature_ro").value =
-                canvas.toDataURL();
+        // ===== CEK KOSONG =====
+        function isCanvasEmpty(canvas) {
+            const blank = document.createElement("canvas");
+            blank.width = canvas.width;
+            blank.height = canvas.height;
+            return canvas.toDataURL() === blank.toDataURL();
+        }
 
+        // ===== PAKSA SIMPAN SAAT SUBMIT =====
+        const form = canvas.closest("form");
+        if (form) {
+            form.addEventListener("submit", function(e) {
+
+                if (isCanvasEmpty(canvas)) {
+                    e.preventDefault();
+                    alert("Tanda tangan wajib diisi!");
+                    return;
+                }
+
+                document.getElementById("signature_ro").value = canvas.toDataURL();
+            });
         }
 
     }
 
+    // ===== CLEAR =====
     function clearRO() {
-
         const canvas = document.getElementById("canvas_ro");
-
         const ctx = canvas.getContext("2d");
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        // reset hidden input
+        document.getElementById("signature_ro").value = "";
     }
 </script>

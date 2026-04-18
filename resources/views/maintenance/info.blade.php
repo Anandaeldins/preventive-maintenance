@@ -195,11 +195,37 @@
         backdrop-filter: blur(10px);
         background: rgba(255, 255, 255, 0.8) !important;
     }
+
+    .btn-back {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 6px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        backdrop-filter: blur(6px);
+        transition: 0.2s;
+        text-decoration: none;
+    }
+
+    .btn-back:hover {
+        background: rgba(255, 255, 255, 0.25);
+        color: #fff;
+        transform: translateY(-1px);
+    }
 </style>
+
+
 @section('content')
     <div class="card">
+
         <div class="card-header text-white d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Informasi Maintenance</h5>
+
+            <a href="{{ url('/tasks') }}" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Kembali
+            </a>
         </div>
 
         <div class="card-body">
@@ -207,8 +233,7 @@
             <div class="pm-filter-bar">
                 <form method="GET" class="d-flex gap-2 flex-wrap">
 
-                    <input type="text" name="search" class="pm-filter-select" placeholder="Cari segment..."
-                        value="{{ request('search') }}">
+
 
                     <select name="sort" class="pm-filter-select">
                         <option value="">Urutkan</option>
@@ -223,6 +248,18 @@
                                 {{ $seg->nama_segment }}
                             </option>
                         @endforeach
+                    </select>
+                    <select name="status" class="pm-filter-select">
+                        <option value="">Semua Status</option>
+                        <option value="belum" {{ request('status') == 'belum' ? 'selected' : '' }}>Belum Dikerjakan
+                        </option>
+                        <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                        <option value="pending_ro" {{ request('status') == 'pending_ro' ? 'selected' : '' }}>Pending RO
+                        </option>
+                        <option value="pending_pusat" {{ request('status') == 'pending_pusat' ? 'selected' : '' }}>Pending
+                            Pusat</option>
+                        <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Selesai</option>
+                        <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                     </select>
 
                     <div class="pm-filter-right">
@@ -348,31 +385,21 @@
 
                 $('#reportContent').html('Loading...');
 
-                // FIX kondisi
                 if (status === 'pending_ro') {
                     $('#btnKirimRO')
                         .prop('disabled', true)
                         .text('Sudah Dikirim ke RO');
-                } else {
-                    $('#btnKirimRO')
-                        .prop('disabled', false)
-                        .text('Kirim ke Kepala RO');
-                }
-                // FIX kondisi
-                if (status === 'pending_pusat') {
+
+                } else if (status === 'pending_pusat') {
                     $('#btnKirimRO')
                         .prop('disabled', true)
                         .text('Sudah Dikirim ke Pusat');
-                } else {
-                    $('#btnKirimRO')
-                        .prop('disabled', false)
-                        .text('Kirim ke Kepala RO');
-                }
-                // FIX kondisi
-                if (status === 'approved') {
+
+                } else if (status === 'approved') {
                     $('#btnKirimRO')
                         .prop('disabled', true)
                         .text('Laporan Disetujui');
+
                 } else {
                     $('#btnKirimRO')
                         .prop('disabled', false)

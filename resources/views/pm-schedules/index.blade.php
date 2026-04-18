@@ -31,7 +31,14 @@
 
                             <div class="pm-filter-left">
 
-
+                                <select id="filterSegment" class="pm-filter-select">
+                                    <option value="">Segment</option>
+                                    @foreach ($segments as $s)
+                                        <option value="{{ $s->nama_segment }}">
+                                            {{ $s->nama_segment }}
+                                        </option>
+                                    @endforeach
+                                </select>
 
                                 <select id="filterPriority" class="pm-filter-select">
                                     <option value="">Prioritas</option>
@@ -40,11 +47,11 @@
                                     <option value="RENDAH">RENDAH</option>
                                 </select>
 
-                                <select id="sortDate" class="pm-filter-select">
+                                {{-- <select id="sortDate" class="pm-filter-select">
                                     <option value="">Sort by Date</option>
                                     <option value="asc">Tanggal Terdekat</option>
                                     <option value="desc">Tanggal Terjauh</option>
-                                </select>
+                                </select> --}}
 
                                 <select id="filterPIC" class="pm-filter-select">
                                     <option value="">PIC</option>
@@ -76,7 +83,7 @@
                                         <th>Priority</th>
                                         <th>Status</th>
                                         <th>Dibuat Oleh</th>
-                                        <th>Teknisi</th>
+
                                         <th>Aksi</th>
                                     </tr>
                                 </thead>
@@ -85,12 +92,12 @@
                                         @php
                                             $first = $group->first(); // ambil data utama untuk kolom umum
                                         @endphp
-                                        <tr>
+                                        <tr data-created="{{ $first->created_at }}">
                                             <td>{{ $loop->iteration }}</td>
                                             <td>
                                                 {{ $first->segment->nama_segment ?? '-' }}
                                             </td>
-                                            <td>
+                                            <td data-date="{{ $first->planned_date }}">
                                                 {{ \Carbon\Carbon::parse($first->planned_date)->translatedFormat('F Y') }}
                                             </td>
                                             <td>
@@ -130,10 +137,7 @@
                                             </td>
 
                                             <td>{{ $first->creator->username ?? '-' }}</td>
-                                            <td>
-                                                {{ $first->teknisi2->username ?? '-' }}
 
-                                            </td>
                                             <td>
                                                 <div class="action-group">
 
@@ -205,10 +209,6 @@
                                                             {{ $first->creator->username ?? '-' }}
                                                         </p>
 
-                                                        <p><b>Teknisi:</b>
-                                                            {{ $first->teknisi2->username ?? '-' }}
-
-                                                        </p>
 
                                                         <p><b>Catatan:</b> {{ $first->notes ?? '-' }}</p>
 
@@ -329,7 +329,7 @@
                                                             </select>
 
 
-                                                            <label class="mt-3">Teknisi 2</label>
+                                                            {{-- <label class="mt-3">Teknisi 2</label>
 
                                                             <select name="teknisi_2" class="form-control">
 
@@ -344,7 +344,7 @@
                                                                     </option>
                                                                 @endforeach
 
-                                                            </select>
+                                                            </select> --}}
 
 
                                                             <label class="mt-3">Catatan</label>
@@ -718,33 +718,81 @@
     @endpush
     @push('scripts')
         <script>
+            // ================= NOMOR OTOMATIS =================
+            function updateRowNumber() {
+                let rows = document.querySelectorAll("#schedulesTable tbody tr");
+
+                let index = 1;
+
+                rows.forEach(row => {
+                    if (row.style.display !== "none") {
+                        row.children[0].innerText = index++;
+                    }
+                });
+            }
+
+
+            // ================= SORT SAAT LOAD =================
+            document.addEventListener("DOMContentLoaded", function() {
+
+                let tbody = document.querySelector("#schedulesTable tbody");
+                let rows = Array.from(tbody.querySelectorAll("tr"));
+
+                rows.sort((a, b) => {
+                    let dateA = new Date(a.dataset.created);
+                    let dateB = new Date(b.dataset.created);
+
+                    return dateB - dateA; // terbaru di atas
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+
+                updateRowNumber(); // 🔥 nomor ikut rapi
+            });
+
+
+            // ================= FILTER + SORT =================
             document.getElementById("applyFilter").addEventListener("click", function() {
 
                 let priority = document.getElementById("filterPriority").value;
                 let pic = document.getElementById("filterPIC").value;
+                let segment = document.getElementById("filterSegment").value;
 
-                let rows = document.querySelectorAll("#schedulesTable tbody tr");
+                let tbody = document.querySelector("#schedulesTable tbody");
+                let rows = Array.from(tbody.querySelectorAll("tr"));
 
+                // ===== FILTER =====
                 rows.forEach(row => {
 
                     let rowPriority = row.children[3].innerText.trim();
-                    let rowPIC = row.children[5].innerText.trim();
+                    let rowPIC = row.children[6].innerText.trim();
+                    let rowSegment = row.children[1].innerText.trim();
 
                     let show = true;
 
-                    if (priority && !rowPriority.includes(priority)) {
-                        show = false;
-                    }
-
-                    if (pic && rowPIC !== pic) {
-                        show = false;
-                    }
+                    if (priority && !rowPriority.includes(priority)) show = false;
+                    if (pic && rowPIC !== pic) show = false;
+                    if (segment && rowSegment !== segment) show = false;
 
                     row.style.display = show ? "" : "none";
-
                 });
 
+                // ===== SORT TERBARU =====
+                let visibleRows = rows.filter(row => row.style.display !== "none");
+
+                visibleRows.sort((a, b) => {
+                    let dateA = new Date(a.dataset.created);
+                    let dateB = new Date(b.dataset.created);
+
+                    return dateB - dateA;
+                });
+
+                visibleRows.forEach(row => tbody.appendChild(row));
+
+                updateRowNumber(); // 🔥 nomor ikut update
             });
+            // SORTING
+
 
             document.querySelectorAll("canvas[id^='editSignature']").forEach(canvas => {
 

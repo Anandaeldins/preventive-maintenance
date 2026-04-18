@@ -63,7 +63,6 @@
                     <tbody>
                         @foreach ($segments as $segment)
                             @php $priority = $dataPriority[$segment] ?? null; @endphp
-
                             <tr class="row-hover">
 
                                 <td>{{ $segment }}</td>
@@ -143,7 +142,8 @@
                     }
                     console.log("FETCH:", segment, bulan, tahun);
 
-                    fetch(`/fmeaoutput/data?segment=${segment}&bulan=${bulan}&tahun=${tahun}`).then(
+                    fetch(`/fmeaoutput/data?segment=${segment}&bulan=${bulan}&tahun=${tahun}`)
+                        .then(
                             res => res.json())
                         .then(data => {
                             document.getElementById("fmeaResult").innerHTML = data.html;

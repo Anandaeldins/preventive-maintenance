@@ -201,7 +201,7 @@
             @endauth
             <!-- Manajemen User -->
             @auth
-                @if (in_array(auth()->user()->role, ['admin', 'kepala_ro']))
+                @if (in_array(auth()->user()->role, ['admin']))
                     <a href="/admin/users" class="card-link">
                         <div class="card">
                             <div class="icon"><i class="bi bi-people"></i></div>
@@ -214,7 +214,7 @@
 
             <!-- Manajemen User -->
             @auth
-                @if (auth()->user()->role == 'admin')
+                @if (auth()->user()->role == 'kepala_ro')
                     <a href="/fmeaoutput" class="card-link">
                         <div class="card">
                             <div class="icon"><i class="bi bi-people"></i></div>

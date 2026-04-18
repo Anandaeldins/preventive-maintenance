@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\InspeksiHeader;
 use App\Models\InspeksiKondisiUmum;
-use App\Models\InspeksiDetail;
+use Illuminate\Support\Facades\Auth;
 use App\Models\PmSchedule;
-
+use App\Models\FmeaOutput;
 class FmeaController extends Controller
 {
     /**
@@ -23,9 +23,15 @@ return PmSchedule::where('status', 'approved')->get();
 
  public function index(Request $request)
 {
-    $segments = InspeksiHeader::select('segment_inspeksi')
-                    ->distinct()
-                    ->pluck('segment_inspeksi');
+    $user = Auth::user();
+
+    // 🔥 FILTER SEGMENT BERDASARKAN REGIONAL
+    $segments = InspeksiHeader::whereHas('creator', function ($q) use ($user) {
+            $q->where('regional_id', $user->regional_id);
+        })
+        ->select('segment_inspeksi')
+        ->distinct()
+        ->pluck('segment_inspeksi');
 
     $dataPriority = [];
 
@@ -36,30 +42,24 @@ return PmSchedule::where('status', 'approved')->get();
             continue;
         }
 
-        $details = \App\Models\InspeksiFmeaDetail::whereHas('header', function ($q) use ($segment, $request) {
-            $q->where('segment_inspeksi', $segment)
-              ->whereMonth('tanggal_inspeksi', $request->bulan)
-              ->whereYear('tanggal_inspeksi', $request->tahun);
-        })->get();
+        // 🔥 mapping string → segment_id
+        $segmentModel = \App\Models\Segment::whereRaw(
+            'LOWER(nama_segment) = ?',
+            [strtolower($segment)]
+        )->first();
 
-        if ($details->count() == 0) {
+        if (!$segmentModel) {
             $dataPriority[$segment] = null;
             continue;
         }
 
-        $maxIndex = $details->max('risk_index');
+        // 🔥 FILTER FMEA JUGA BERDASARKAN REGIONAL
+        $fmea = FmeaOutput::where('segment_id', $segmentModel->id)
+            ->where('bulan', $request->bulan)
+            ->where('tahun', $request->tahun)
+            ->first();
 
-        $maxRpn = $details->max('rpn');
-
-if ($maxRpn >= 20) {
-    $priority = 'KRITIS';
-} elseif ($maxRpn >= 10) {
-    $priority = 'SEDANG';
-} else {
-    $priority = 'RENDAH';
-}
-
-        $dataPriority[$segment] = $priority;
+        $dataPriority[$segment] = $fmea->priority ?? null;
     }
 
     return view('fmeaoutput', compact('segments', 'dataPriority'));
@@ -147,12 +147,26 @@ if ($maxRpn >= 20) {
 
  public function output(Request $request)
 {
-    $segment = strtolower(trim($request->segment));
-    $bulan = $request->bulan;
-    $tahun = $request->tahun;
+   
+
+$segmentName = strtolower(trim($request->segment ?? ''));
+$bulan = $request->bulan;
+$tahun = $request->tahun;
+
+if (!$bulan || !$tahun) {
+    return response()->json([
+        'html' => '<p>Bulan / Tahun tidak valid</p>'
+    ]);
+}
+
+if (!$segmentName) {
+    return response()->json([
+        'html' => '<p>Segment tidak ditemukan</p>'
+    ]);
+}
 
     $query = InspeksiHeader::with('fmeaDetails')
-        ->whereRaw('LOWER(segment_inspeksi) = ?', [$segment]);
+    ->whereRaw('LOWER(segment_inspeksi) = ?', [$segmentName]);
 
     if ($bulan && $tahun) {
         $query->whereMonth('tanggal_inspeksi', $bulan)
@@ -194,6 +208,11 @@ if ($maxRpn >= 20) {
             $rekap[$item]['count']++;
         }
     }
+    if (empty($rekap)) {
+    return response()->json([
+        'html' => '<p>Data FMEA kosong</p>'
+    ]);
+}
 
     // ================= HITUNG RATA-RATA =================
     foreach ($rekap as $item => $data) {
@@ -220,6 +239,21 @@ if ($maxRpn >= 20) {
         $priority = 'RENDAH';
     }
 
+ $segmentModel = \App\Models\Segment::whereRaw(
+    'LOWER(nama_segment) = ?', 
+    [$segmentName]
+)->first();
+
+if (!$segmentModel) {
+    return response()->json([
+        'html' => '<p>Segment tidak ditemukan di tabel segments</p>'
+    ]);
+}
+
+$segmentId = $segmentModel->id;
+
+
+
     // ================= FORMAT KE VIEW =================
     $results = collect($rekap)->map(function ($data, $item) {
         return [
@@ -243,36 +277,75 @@ if ($maxRpn >= 20) {
 
     return response()->json(['html' => $html]);
 }
-private function hitungOccurrence($segment, $objek, $field, $value)
+
+public static function generateFromInspeksi($segmentName, $tanggal)
 {
-$inspeksiIds = InspeksiHeader::whereRaw('LOWER(segment_inspeksi) = ?', [strtolower($segment)])
-        ->whereMonth('created_at', now()->month)
-        ->whereYear('created_at', now()->year)
-        ->pluck('id');
+     logger('FMEA START', [
+    'segment' => $segmentName,
+    'tanggal' => $tanggal
+]); 
+    $bulan = \Carbon\Carbon::parse($tanggal)->month;
+    $tahun = \Carbon\Carbon::parse($tanggal)->year;
 
-    $details = InspeksiDetail::whereIn('inspeksi_id', $inspeksiIds)
-        ->where('objek', $objek)
+    $inspeksis = InspeksiHeader::with('fmeaDetails')
+            ->where('status_workflow', 'approved')
+            ->whereRaw('TRIM(LOWER(segment_inspeksi)) = ?', [
+            trim(strtolower($segmentName))
+        ])        
+        ->whereMonth('tanggal_inspeksi', $bulan)
+        ->whereYear('tanggal_inspeksi', $tahun)
         ->get();
+// logger('INSPEKSI COUNT', [
+//     'count' => $inspeksis->count()
+// ]);
+    if ($inspeksis->isEmpty()) return;
 
-    $jumlah = 0;
+    $rekap = [];
 
-    foreach ($details as $d) {
-        $status = json_decode($d->status, true);
+    foreach ($inspeksis as $inspeksi) {
+        foreach ($inspeksi->fmeaDetails as $detail) {
 
-        if (isset($status[$field]) && $status[$field] == $value) {
-            $jumlah++;
+            $item = $detail->item;
+
+            if (!isset($rekap[$item])) {
+                $rekap[$item] = ['total_rpn' => 0, 'count' => 0];
+            }
+
+            $rekap[$item]['total_rpn'] += $detail->rpn;
+            $rekap[$item]['count']++;
         }
     }
 
-    // skala 1–5
-    if ($jumlah >= 5) return 5;
-    if ($jumlah >= 3) return 4;
-    if ($jumlah >= 2) return 3;
-    if ($jumlah == 1) return 2;
+    if (empty($rekap)) return;
 
-    return 1;
-
+    foreach ($rekap as $item => $data) {
+        $rekap[$item]['avg_rpn'] = $data['total_rpn'] / $data['count'];
     }
 
+    $maxRpn = collect($rekap)->max('avg_rpn');
+
+    $priority = $maxRpn >= 20 ? 'KRITIS' :
+                ($maxRpn >= 10 ? 'SEDANG' : 'RENDAH');
+
+    $segment = \App\Models\Segment::whereRaw(
+    'TRIM(LOWER(nama_segment)) = ?',
+    [trim(strtolower($segmentName))]
+)->first();
+
+    if (!$segment) return;
+
+    FmeaOutput::updateOrCreate(
+        [
+            'segment_id' => $segment->id,
+            'bulan' => $bulan,
+            'tahun' => $tahun
+        ],
+        [
+            'avg_rpn' => $maxRpn,
+            'risk_index' => round($maxRpn / 125, 2),
+            'priority' => $priority
+        ]
+    );
+}
 
 }

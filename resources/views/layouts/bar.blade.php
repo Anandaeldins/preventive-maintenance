@@ -232,6 +232,25 @@
                 margin: 16px 0;
             }
         }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .card {
+            background: var(--card) !important;
+            color: var(--text);
+        }
+
+        .table tbody tr {
+            background: var(--card);
+        }
+
+        .modal-content {
+            background: var(--card);
+            color: var(--text);
+        }
     </style>
 
     @stack('style')
@@ -266,19 +285,26 @@
             <a href="/admin/admin-fitur" class="{{ request()->is('admin/admin-fitur') ? 'active' : '' }}">
                 Fitur
             </a>
-
-            <a href="/tentang" class="{{ request()->is('tentang') ? 'active' : '' }}">
+            @auth
+                @if (in_array(auth()->user()->role, ['teknisi', 'kepala_ro']))
+                    <a href="{{ url('/maintenance/info') }}"
+                        class="{{ request()->is('maintenance/info') ? 'active' : '' }}">
+                        Laporan PM
+                    </a>
+                @endif
+            @endauth
+            {{-- <a href="/tentang" class="{{ request()->is('tentang') ? 'active' : '' }}">
                 Tentang
             </a>
 
             <a href="/bantuan" class="{{ request()->is('bantuan') ? 'active' : '' }}">
                 Bantuan
-            </a>
+            </a> --}}
         </div>
 
 
         <div class="right-area">
-            <div class="toggle" onclick="toggleDark()"></div>
+
 
             <div class="profile-wrapper">
                 <div class="profile" onclick="toggleProfile()">
@@ -300,8 +326,13 @@
                                 Dashboard</a>
                         @endif
                     @endauth
-                    <a href="{{ route('account.index') }}"><i class="bi bi-person-gear"></i> Account Settings</a>
-                    <a href="{{ route('settings.index') }}"><i class="bi bi-gear"></i> Pengaturan</a>
+                    @auth
+                        @if (auth()->user()->role == 'admin')
+                            <a href="{{ route('account.index') }}">
+                                <i class="bi bi-person-gear"></i> Account Settings
+                            </a>
+                        @endif
+                    @endauth <a href="{{ route('settings.index') }}"><i class="bi bi-gear"></i> Pengaturan</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="logout-btn">
@@ -324,10 +355,6 @@
     </footer>
 
     <script>
-        function toggleDark() {
-            document.body.classList.toggle('dark');
-        }
-
         function toggleProfile() {
             document.getElementById('profileDropdown').classList.toggle('show');
         }

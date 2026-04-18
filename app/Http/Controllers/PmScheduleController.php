@@ -10,6 +10,9 @@
     use Illuminate\Support\Facades\DB;
     use Illuminate\Support\Facades\Storage;
     use App\Models\Segment;
+    use Carbon\Carbon;
+    use Illuminate\Support\Facades\Validator;
+use App\Models\FmeaOutput;
 
     class PmScheduleController extends Controller
     {
@@ -23,26 +26,38 @@
 {
     $user = Auth::user();
 
-    $query = PmSchedule::with(['creator','approver','teknisi1','teknisi2','segment'])
-        ->orderBy('planned_date','desc');
-
-    if ($user->role === 'teknisi') {
-        $query->where('created_by', $user->id);
+    // ================= TEKNISI =================
+    if ($user->role === 'admin') {
+        $teknisis = User::where('role', 'teknisi')->get();
+    } else {
+        $teknisis = User::where('role', 'teknisi')
+            ->where('regional_id', $user->regional_id)
+            ->get();
     }
 
-   $schedules = $query->get()
-    ->groupBy(function ($item) {
+    // ================= SCHEDULE =================
+    $schedules = PmSchedule::with(['segment', 'creator', 'teknisi1', 'teknisi2'])
+        ->when($user->role !== 'admin', function ($query) use ($user) {
+            $query->whereHas('segment', function ($q) use ($user) {
+                $q->where('regional_id', $user->regional_id);
+            });
+        })
+        ->orderBy('created_at', 'desc') // 🔥 terbaru dibuat
+        ->get() // ❗ WAJIB
+        ->groupBy(function ($item) {
 
-        $segmentName = optional($item->segment)->nama_segment ?? 'Segment tidak ditemukan';
+            $segmentName = optional($item->segment)->nama_segment ?? 'Segment tidak ditemukan';
 
-        return $segmentName . '|' .
-               $item->planned_date->format('Y-m') . '|' .
-               $item->teknisi_1 . '|' .
-               ($item->teknisi_2 ?? '0');
-    });
+            return $segmentName . '|' .
+                   Carbon::parse($item->planned_date)->format('Y-m') . '|' .
+                   $item->teknisi_1 . '|' .
+                   ($item->teknisi_2 ?? '0');
+        });
 
-    $segments = Segment::orderBy('nama_segment')->get();
-    $teknisis = User::where('role','teknisi')->get();
+    // ================= SEGMENT =================
+    $segments = Segment::when($user->role !== 'admin', function ($query) use ($user) {
+        $query->where('regional_id', $user->regional_id);
+    })->orderBy('nama_segment')->get();
 
     return view('pm-schedules.index', compact(
         'schedules',
@@ -78,162 +93,183 @@
         | STORE SCHEDULE
         |--------------------------------------------------------------------------
         */
-        public function store(Request $request)
-        {
-            try {
+        
+public function store(Request $request)
+{
+    try {
 
-                $request->validate([
-                    'segment_id' => 'required|exists:segments,id',
-                    'planned_date'     => 'required|string',
-                    'teknisi_1'        => 'required|integer',
-                ]);
+        // ================= VALIDATION =================
+        $validator = Validator::make($request->all(), [
+            'segment_id' => 'required|exists:segments,id',
+            'planned_date' => 'required|string',
+            'teknisi_1' => 'required|integer',
+        ]);
 
-                $dates = array_filter(
-                    array_map('trim', explode(',', $request->planned_date))
+        $validator->after(function ($validator) use ($request) {
+
+            $priority = strtoupper($request->priority ?? 'RENDAH');
+
+            $dates = array_filter(
+                array_map('trim', explode(',', $request->planned_date ?? ''))
+            );
+
+            $minRequired = match($priority) {
+                'KRITIS' => 3,
+                'SEDANG' => 2,
+                default  => 1
+            };
+
+            if (count($dates) < $minRequired) {
+                $validator->errors()->add(
+                    'planned_date',
+                    "Priority {$priority} membutuhkan minimal {$minRequired} jadwal."
                 );
+            }
+        });
 
-                if (empty($dates)) {
-                    return back()->withErrors([
-                        'planned_date' => 'Pilih minimal satu tanggal.'
-                    ])->withInput();
-                }
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput();
+        }
 
-                $priority = strtoupper($request->priority ?? 'RENDAH');
-                $submitForApproval = $request->submit_for_approval ?? 1;
+        // ================= PARSE DATE =================
+        $dates = array_filter(
+            array_map('trim', explode(',', $request->planned_date))
+        );
 
-                if ($submitForApproval == 1) {
+        if (empty($dates)) {
+            return back()->withErrors([
+                'planned_date' => 'Pilih minimal satu tanggal.'
+            ])->withInput();
+        }
 
-                    $minRequired = match($priority) {
-                        'KRITIS' => 3,
-                        'SEDANG' => 2,
-                        default  => 1
-                    };
+        $priority = strtoupper($request->priority ?? 'RENDAH');
+        $submitForApproval = $request->submit_for_approval ?? 1;
 
-                    if (count($dates) < $minRequired) {
-                        return back()->withErrors([
-                            'planned_date' =>
-                            "Priority {$priority} membutuhkan minimal {$minRequired} jadwal."
-                        ])->withInput();
-                    }
-                }
+        // ================= VALIDASI FORMAT & MASA LALU =================
+        $today = now()->toDateString();
 
-                $today = now()->toDateString();
+        foreach ($dates as $date) {
 
-                foreach ($dates as $date) {
-
-                    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                        return back()->withErrors([
-                            'planned_date' => "Format tanggal {$date} tidak valid."
-                        ])->withInput();
-                    }
-
-                    if ($date < $today) {
-                        return back()->withErrors([
-                            'planned_date' => "Tanggal {$date} tidak boleh di masa lalu."
-                        ])->withInput();
-                    }
-                }
-
-                $teknisi1 = $request->teknisi_1;
-                $teknisi2 = $request->teknisi_2;
-
-                if ($teknisi2 && $teknisi1 == $teknisi2) {
-                    return back()->withErrors([
-                        'teknisi_2' => 'Teknisi 1 dan Teknisi 2 tidak boleh sama.'
-                    ])->withInput();
-                }
-
-                $createdCount = 0;
-
-    $signaturePath = null;
-
-    if ($request->signature_teknisi) {
-
-        $image = $request->signature_teknisi;
-
-        // hapus header base64
-        $image = str_replace('data:image/png;base64,', '', $image);
-        $image = str_replace(' ', '+', $image);
-
-        // decode base64
-        $imageData = base64_decode($image);
-
-        // nama file unik
-        $fileName = 'ttd_' . time() . '.png';
-
-        // simpan ke storage
-        Storage::disk('public')->put('signatures/'.$fileName, $imageData);
-
-        // simpan path ke database
-        $signaturePath = 'signatures/'.$fileName;
-    }
-
-                DB::transaction(function () use (
-                    $request,
-                    $dates,
-                    $priority,
-                    $teknisi1,
-                    $teknisi2,
-                    $submitForApproval,
-                    $signaturePath,
-                    &$createdCount
-                ) {
-
-                    foreach ($dates as $date) {
-
-                        $status = $submitForApproval == 1 ? 'pending' : 'draft';
-
-                        PmSchedule::create([
-                            'segment_id'       => $request->segment_id,
-                            'planned_date'     => $date,
-                            'priority'         => $priority,
-                            'created_by'       => Auth::id(),
-                            'status'           => $status,
-                            'notes'            => $request->notes,
-                            'teknisi_1'        => $teknisi1,
-                            'teknisi_2'        => $teknisi2,
-                            'signature_teknisi'=> $signaturePath,
-                        ]);
-
-                        $createdCount++;
-                    }
-                            });
-
-                return redirect()
-                    ->route('pm-schedules.index')
-                    ->with('success', "{$createdCount} jadwal PM berhasil dibuat.");
-
-            } catch (\Throwable $e) {
-
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
                 return back()->withErrors([
-                    'system_error' => 'SYSTEM ERROR: ' . $e->getMessage()
+                    'planned_date' => "Format tanggal {$date} tidak valid."
+                ])->withInput();
+            }
+
+            if ($date < $today) {
+                return back()->withErrors([
+                    'planned_date' => "Tanggal {$date} tidak boleh di masa lalu."
                 ])->withInput();
             }
         }
+
+        // ================= TEKNISI VALIDATION =================
+        $teknisi1 = $request->teknisi_1;
+        $teknisi2 = $request->teknisi_2;
+
+        if ($teknisi2 && $teknisi1 == $teknisi2) {
+            return back()->withErrors([
+                'teknisi_2' => 'Teknisi 1 dan Teknisi 2 tidak boleh sama.'
+            ])->withInput();
+        }
+
+        $createdCount = 0;
+
+        // ================= SIGNATURE =================
+        $signaturePath = null;
+
+        if ($request->signature_teknisi) {
+
+            $image = $request->signature_teknisi;
+
+            $image = str_replace('data:image/png;base64,', '', $image);
+            $image = str_replace(' ', '+', $image);
+
+            $imageData = base64_decode($image);
+
+            $fileName = 'ttd_' . time() . '.png';
+
+            Storage::disk('public')->put('signatures/' . $fileName, $imageData);
+
+            $signaturePath = 'signatures/' . $fileName;
+        }
+
+        // ================= SAVE =================
+        DB::transaction(function () use (
+            $request,
+            $dates,
+            $priority,
+            $teknisi1,
+            $teknisi2,
+            $submitForApproval,
+            $signaturePath,
+            &$createdCount
+        ) {
+
+            foreach ($dates as $date) {
+
+                $status = $submitForApproval == 1 ? 'pending' : 'draft';
+
+                PmSchedule::create([
+                    'segment_id'        => $request->segment_id,
+                    'planned_date'      => $date,
+                    'priority'          => $priority,
+                    'created_by'        => Auth::id(),
+                    'status'            => $status,
+                    'notes'             => $request->notes,
+                    'teknisi_1'         => $teknisi1,
+                    'teknisi_2'         => $teknisi2,
+                    'signature_teknisi' => $signaturePath,
+                ]);
+
+                $createdCount++;
+            }
+        });
+
+        return redirect()
+            ->route('pm-schedules.index')
+            ->with('success', "{$createdCount} jadwal PM berhasil dibuat.");
+
+    } catch (\Throwable $e) {
+
+        return back()->withErrors([
+            'system_error' => 'SYSTEM ERROR: ' . $e->getMessage()
+        ])->withInput();
+    }
+}
 
         /*
         |--------------------------------------------------------------------------
         | SUBMIT MANUAL APPROVAL
         |--------------------------------------------------------------------------
         */
-        public function submitForApproval($id)
-    {
-            $schedule = PmSchedule::findOrFail($id);
+       public function submitForApproval($id)
+{
+    $schedule = PmSchedule::findOrFail($id);
 
-            if ($schedule->status !== 'draft') {
-                return back()->withErrors([
-                    'error' => 'Jadwal sudah dalam proses approval.'
-                ]);
-            }
+    if ($schedule->status !== 'draft') {
+        return back()->withErrors([
+            'error' => 'Jadwal sudah dalam proses approval.'
+        ]);
+    }
 
-            $schedule->update([
-                'status' => 'pending'
-            ]);
+    $date = Carbon::parse($schedule->planned_date);
 
-            return back()->with('success',
-                'Jadwal PM dikirim untuk approval.'
-            );
-        }
+    // 🔥 update SEMUA tanggal dalam 1 batch
+    PmSchedule::where('segment_id', $schedule->segment_id)
+        ->whereMonth('planned_date', $date->month)
+        ->whereYear('planned_date', $date->year)
+        ->where('status', 'draft')
+        ->update([
+            'status' => 'pending'
+        ]);
+
+    return back()->with('success',
+        'Semua jadwal PM berhasil dikirim untuk approval.'
+    );
+}
         
         /*
         |--------------------------------------------------------------------------
@@ -257,20 +293,21 @@
 
 public function pendingSchedules()
 {
- $schedules = PmSchedule::with(['segment','creator'])
-    ->where('status','pending')
-    ->orderBy('planned_date')
-    ->get()
-    ->groupBy(function ($item) {
+    $schedules = PmSchedule::with(['segment','creator'])
+        ->where('status','pending')
+        ->orderBy('planned_date')
+        ->get()
+        ->groupBy(function ($item) {
 
-        return $item->segment_id . '|' .
-               $item->planned_date->format('Y-m');
+            return $item->segment_id . '|' .
+       Carbon::parse($item->planned_date)->format('Y-m') . '|' .
+       $item->teknisi_1 . '|' .
+       ($item->teknisi_2 ?? '0');
 
-    });
+        });
 
     return view('approval.pending-schedules', compact('schedules'));
 }
-
     
 
        public function approvalHistory()
@@ -369,7 +406,7 @@ public function pendingSchedules()
             return back()->with('success', 'Schedule rejected.');
         }
         
-       public function update(Request $request, $id)
+    public function update(Request $request, $id)
 {
     try {
 
@@ -391,7 +428,6 @@ public function pendingSchedules()
         HANDLE SIGNATURE
         =============================
         */
-
         $signaturePath = $schedule->signature_teknisi;
 
         if ($request->signature_teknisi) {
@@ -405,27 +441,38 @@ public function pendingSchedules()
 
             $fileName = 'ttd_' . time() . '.png';
 
-            Storage::disk('public')->put('signatures/'.$fileName, $imageData);
+            Storage::disk('public')->put('signatures/' . $fileName, $imageData);
 
-            $signaturePath = 'signatures/'.$fileName;
+            $signaturePath = 'signatures/' . $fileName;
         }
 
-        DB::transaction(function () use ($schedule,$request,$dates,$signaturePath) {
+        DB::transaction(function () use ($schedule, $request, $dates, $signaturePath) {
 
-            // cari semua jadwal dalam group
-            $group = PmSchedule::where('segment_id',$schedule->segment_id)
-                ->whereMonth('planned_date',$schedule->planned_date->format('m'))
-                ->whereYear('planned_date',$schedule->planned_date->format('Y'))
-                ->where('teknisi_1',$schedule->teknisi_1)
-                ->get();
+            /*
+            =============================
+            DELETE 1 GROUP (1 BULAN)
+            =============================
+            */
+            $group = PmSchedule::where('segment_id', $schedule->segment_id)
+    ->whereMonth('planned_date', $schedule->planned_date->format('m'))
+    ->whereYear('planned_date', $schedule->planned_date->format('Y'))
+    ->where('teknisi_1', $schedule->teknisi_1)
+    ->where(function ($q) use ($schedule) {
+        if ($schedule->teknisi_2) {
+            $q->where('teknisi_2', $schedule->teknisi_2);
+        } else {
+            $q->whereNull('teknisi_2');
+        }
+    })
+    ->delete(); // 🔥 langsung hapus
+            
 
-            // hapus jadwal lama
-            foreach($group as $item){
-                $item->delete();
-            }
-
-            // buat ulang jadwal
-            foreach($dates as $date){
+            /*
+            =============================
+            INSERT ULANG (MULTI TANGGAL)
+            =============================
+            */
+            foreach ($dates as $date) {
 
                 PmSchedule::create([
                     'segment_id' => $request->segment_id,
@@ -438,14 +485,12 @@ public function pendingSchedules()
                     'notes' => $request->notes,
                     'signature_teknisi' => $signaturePath
                 ]);
-
             }
-
         });
 
         return redirect()
-        ->route('pm-schedules.index')
-        ->with('success','Jadwal berhasil diperbarui.');
+            ->route('pm-schedules.index')
+            ->with('success', 'Jadwal berhasil diperbarui.');
 
     } catch (\Throwable $e) {
 
@@ -511,4 +556,37 @@ public function rejectGroup(Request $request)
     return back()->with('success', 'Schedule bulan ini ditolak');
 }
 
+public function getRiskSummary(Request $request)
+{
+    $segmentId = $request->segment_id;
+    $bulan = (int) $request->bulan;
+    $tahun = (int) $request->tahun;
+
+    // =============================
+    // AMBIL BULAN SEBELUMNYA
+    // =============================
+    if ($bulan == 1) {
+        $bulan = 12;
+        $tahun -= 1;
+    } else {
+        $bulan -= 1;
+    }
+
+    $fmea = FmeaOutput::where('segment_id', $segmentId)
+        ->where('bulan', $bulan)
+        ->where('tahun', $tahun)
+        ->first();
+
+    return response()->json([
+        'priority' => $fmea->priority ?? 'RENDAH'
+    ]);
+}
+private function getMinimalSchedule($priority)
+{
+    return match ($priority) {
+        'KRITIS' => 3,
+        'SEDANG' => 2,
+        default => 1,
+    };
+}
     }

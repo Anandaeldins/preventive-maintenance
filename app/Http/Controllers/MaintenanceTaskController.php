@@ -59,25 +59,39 @@ public function info(Request $request)
     $query = Segment::with(['schedules' => function ($q) use ($request) {
 
         $q->where('status','approved')
-          ->with('inspeksiHeader');
+  ->with('inspeksiHeader');
 
-        // 🔥 filter tanggal
-        if ($request->from) {
-            $q->whereDate('planned_date', '>=', $request->from);
-        }
+// 🔥 FILTER STATUS
+if ($request->status) {
 
-        if ($request->to) {
-            $q->whereDate('planned_date', '<=', $request->to);
-        }
+    if ($request->status == 'belum') {
+        // belum ada inspeksi
+        $q->whereDoesntHave('inspeksiHeader');
+    } else {
+        // sudah ada inspeksi dengan status tertentu
+        $q->whereHas('inspeksiHeader', function ($q2) use ($request) {
+            $q2->where('status_workflow', $request->status);
+        });
+    }
+}
 
-        // 🔥 SORTING DI SINI
-        if ($request->sort == 'asc') {
-            $q->orderBy('planned_date', 'asc');
-        } elseif ($request->sort == 'desc') {
-            $q->orderBy('planned_date', 'desc');
-        } else {
-            $q->orderBy('planned_date', 'asc'); // default
-        }
+// 🔥 filter tanggal
+if ($request->from) {
+    $q->whereDate('planned_date', '>=', $request->from);
+}
+
+if ($request->to) {
+    $q->whereDate('planned_date', '<=', $request->to);
+}
+
+// 🔥 SORTING
+if ($request->sort == 'asc') {
+    $q->orderBy('planned_date', 'asc');
+} elseif ($request->sort == 'desc') {
+    $q->orderBy('planned_date', 'desc');
+} else {
+    $q->orderBy('planned_date', 'asc');
+}
 
     }])
 

@@ -11,6 +11,10 @@ use App\Models\InspeksiKondisiUmum;
 use App\Models\PmSchedule;
 use App\Models\InspeksiDetail;
 use App\Models\User;
+
+use App\Models\Segment;
+
+
 class InspeksiHeader extends Model
 {
     protected $table = 'inspeksi_headers';
@@ -82,6 +86,19 @@ public function approver()
     return $this->belongsTo(User::class,'approved_by');
 }
 
+public function segment()
+{
+    return $this->belongsTo(Segment::class, 'segment_id');
+}
 
+public function images()
+{
+    return $this->hasMany(InspeksiImage::class);
+}
+
+public function creator()
+{
+    return $this->belongsTo(User::class, 'prepared_by');
+}
 
 }

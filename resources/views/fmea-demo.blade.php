@@ -304,7 +304,6 @@
         .form-group {
             grid-template-columns: 1fr;
         }
-        }
     </style>
 </head>
 
@@ -315,7 +314,8 @@
         <div style="max-width:900px;margin:auto"></div>
         <h2>Form Inspeksi Jaringan Fiber Optik</h2>
 
-        <form method="POST" action="{{ route('tasks.store', $schedule->id) }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('tasks.store', ['schedule' => $schedule->id]) }}"
+            enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
 
@@ -629,24 +629,32 @@
                 </div>
             </div>
             <hr>
+            <!-- ===================== UPLOAD GAMBAR ===================== -->
+            <div class="section">
+                <h3>C. Upload Bukti PM</h3>
+
+                <div class="form-group">
+                    <label>Upload Foto (Bisa lebih dari 1)</label>
+                    <input type="file" name="images[]" multiple class="form-control">
+                </div>
+            </div>
 
             <!-- ===================== C. PENGESAHAN ===================== -->
             <div class="section">
-                <h3>C. Pengesahan</h3>
+                <h3>D. Pengesahan</h3>
 
                 <div class="grid">
 
                     <!-- Prepared -->
                     <div>
-                        <input type="text" name="prepared_by" id="prepared_by"
-                            value="{{ auth()->user()->username }}" readonly>
+                        <input type="text" name="prepared_by" value="{{ auth()->user()->username }}" readonly>
 
-                        <label>Tanda Tangan Prepared (Upload)</label>
-                        <input type="file" name="prepared_signature" accept="image/*">
+                        <p><b>Tanda tangan:</b></p>
 
-                        <p><b>atau tanda tangan manual:</b></p>
-                        <canvas id="canvas_prepared" width="320" height="160"></canvas>
-                        <input type="hidden" name="prepared_canvas" id="prepared_canvas">
+                        <canvas id="canvas_prepared"></canvas>
+
+                        <input type="hidden" name="signature_teknisi" id="prepared_canvas">
+
                         <button type="button" onclick="clearPrepared()">Clear</button>
                     </div>
 
@@ -694,9 +702,13 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
 
 <script>
-    $('.select2').select2({
-        placeholder: 'Cari...',
-        allowClear: true
+    $(document).ready(function() {
+        if ($.fn.select2) {
+            $('.select2').select2({
+                placeholder: 'Cari...',
+                allowClear: true
+            });
+        }
     });
 </script>
 
@@ -704,6 +716,12 @@
     function setupCanvas(canvasId, inputId) {
 
         const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        // ✅ FIX 1: set ukuran kecil (WAJIB)
+        canvas.width = 300;
+        canvas.height = 150;
+
         const ctx = canvas.getContext("2d");
 
         let drawing = false;
@@ -740,20 +758,36 @@
         }
 
         function save() {
-            document.getElementById(inputId).value = canvas.toDataURL();
+            const input = document.getElementById(inputId);
+            if (input) {
+                // ✅ FIX 2: compress image
+                input.value = canvas.toDataURL('image/png');
+            }
         }
 
+        // ✅ FIX 3: save terakhir sebelum submit (anti ga ke-trigger)
+        document.querySelector("form").addEventListener("submit", function() {
+            save();
+        });
     }
 
-    // aktifkan canvas
-    setupCanvas("canvas_prepared", "prepared_canvas");
-    setupCanvas("canvas_approved", "approved_canvas");
 
     function clearPrepared() {
         const canvas = document.getElementById("canvas_prepared");
+        if (!canvas) return;
+
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // ✅ reset hidden input
+        document.getElementById("prepared_canvas").value = '';
     }
+
+
+    // aktifkan canvas
+    setupCanvas("canvas_prepared", "prepared_canvas");
+
+
 
     function clearApproved() {
         const canvas = document.getElementById("canvas_approved");

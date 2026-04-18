@@ -11,9 +11,8 @@ use App\Http\Controllers\Teknisi\FmeaController;
 use App\Http\Controllers\Teknisi\DashboardController as TeknisiDashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-
-
-
+use App\Http\Controllers\KepalaRo\KepalaRoController;
+use App\Http\Controllers\Pusat\DashboardController as PusatDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -22,9 +21,12 @@ use Illuminate\Support\Facades\Route;
 | Prefix: /admin
 | Name  : admin.*
 */
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('users', UserController::class);
-});
+Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::resource('users', UserController::class);
+    });
 
 
 /*
@@ -396,7 +398,12 @@ Route::middleware(['auth', 'role:kepala_ro'])->group(function () {
 });
 
 Route::middleware(['auth', 'role:pusat'])->group(function () {
-    Route::get('/pusat/dashboard', function () {
-        return view('pusat.dashboard');
-    })->name('pusat.dashboard');
+    Route::get('/pusat/dashboard', [PusatDashboardController::class, 'dashboard'])
+        ->name('pusat.dashboard');
 });
+
+Route::get('/kepalaro/dashboard', [KepalaRoController::class, 'dashboard'])
+    ->middleware(['auth', 'role:kepala_ro'])
+    ->name('kepalaro.dashboard');
+
+    Route::get('/fmea/output', [FmeaController::class, 'output']);

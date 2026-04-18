@@ -244,7 +244,8 @@
                                     <div class="d-flex gap-2 mt-3">
                                         <input type="text" class="form-control w-50" value="priority" readonly>
 
-                                        <input type="text" name="priority" id="priority" class="form-control" readonly>
+                                        <input type="text" name="priority" id="priority" class="form-control" readonly
+                                            value="RENDAH">
                                     </div>
 
                                     <small id="priorityNote" class="text-muted">
@@ -392,18 +393,42 @@
         }
 
 
-        // ================= PRIORITY AJAX =================
-        $('#segment_id').change(function() {
+        // ================= PRIORITY AJAX (FIXED) =================
+        function loadPriority() {
+
+            let segment = $('#segment_id').val();
+            let bulan = $('#monthSelect').val();
+            let tahun = $('#yearSelect').val();
+
+            if (!segment) {
+                $('#priority').val('RENDAH');
+                updatePriorityNote();
+                return;
+            }
+
             $.get('{{ route('pm-schedules.risk-summary') }}', {
-                    segment_id: $(this).val()
-                },
-                res => {
-                    $('#priority').val(res.priority ?? '');
-                    updatePriorityNote();
-                });
+                segment_id: segment,
+                bulan: bulan,
+                tahun: tahun
+            }, res => {
+
+                $('#priority').val(res.priority ?? 'RENDAH');
+                updatePriorityNote();
+
+            });
+        }
+
+        // 🔥 trigger ke semua perubahan
+        $(document).ready(function() {
+
+            // trigger awal (biar langsung ke-load)
+            loadPriority();
+
+            $('#segment_id').on('change', loadPriority);
+            $('#monthSelect').on('change', loadPriority);
+            $('#yearSelect').on('change', loadPriority);
 
         });
-
 
         // ================= CANVAS SIGNATURE =================
         const canvas =
@@ -604,5 +629,10 @@
                     });
                 }
             });
+        $(document).ready(function() {
+
+            $('#priority').val('RENDAH'); // default awal
+
+        });
     </script>
 @endpush

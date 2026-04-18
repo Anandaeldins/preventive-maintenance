@@ -74,6 +74,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>Regional</th>
                             <th>Segment</th>
                             <th>Tanggal</th>
                             <th>Pelaksana</th>
@@ -84,7 +85,7 @@
                     <tbody>
                         @foreach ($reports as $r)
                             <tr>
-
+                                <td>{{ $r->creator->regional->nama_regional ?? '-' }}</td>
                                 <td>{{ $r->segment_inspeksi }}</td>
 
                                 <td>{{ \Carbon\Carbon::parse($r->tanggal_inspeksi)->format('d F Y') }}</td>
@@ -136,7 +137,7 @@
 
             $('#reportContent').html('Loading...');
 
-            let url = "{{ route('report.modal', 'ID') }}".replace('ID', id);
+            let url = "{{ route('report.modal', ['id' => 'ID']) }}".replace('ID', id);
 
             $.get(url, function(data) {
                 $('#reportContent').html(data);
