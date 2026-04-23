@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('inspeksi_id')
-                  ->constrained('inspeksis')
+                  ->constrained('inspeksi_headers')
                   ->onDelete('cascade');
 
             $table->string('objek');      // kabel_putus, tiang, dll

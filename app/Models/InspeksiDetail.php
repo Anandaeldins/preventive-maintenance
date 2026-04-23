@@ -20,6 +20,6 @@ class InspeksiDetail extends Model
 
     public function inspeksi()
     {
-        return $this->belongsTo(Inspeksi::class);
+        return $this->belongsTo(InspeksiHeader::class, 'inspeksi_id');
     }
 }

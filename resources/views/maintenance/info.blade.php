@@ -146,6 +146,43 @@
         background: linear-gradient(135deg, #06b6d4, #0891b2);
     }
 
+    .action-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
+    .action-group form {
+        margin: 0;
+        display: inline-flex;
+    }
+
+    .btn-send {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    }
+
+    .btn-edit {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .btn-delete {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    .aksi-cell {
+        min-width: 190px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .edit-iframe {
+        width: 100%;
+        height: 82vh;
+        border: 0;
+    }
+
     .action-btn:hover {
         transform: scale(1.08);
         box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
@@ -229,6 +266,27 @@
         </div>
 
         <div class="card-body">
+            @if (session('success'))
+                <div class="alert alert-success">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="alert alert-danger">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert alert-danger">
+                    <ul style="margin:0; padding-left:18px;">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
             <div class="pm-filter-bar">
                 <form method="GET" class="d-flex gap-2 flex-wrap">
@@ -281,7 +339,7 @@
                             <th>Segment</th>
                             <th>Tanggal</th>
                             <th>Status</th>
-                            <th>Aksi</th>
+                            <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
 
@@ -299,7 +357,9 @@
 
                                     <td>
 
-                                        @if (!$schedule->inspeksiHeader)
+                                        @if (!$schedule->inspeksiHeader && $schedule->status === 'rejected')
+                                            <span class="badge bg-danger">Rejected (Auto)</span>
+                                        @elseif (!$schedule->inspeksiHeader)
                                             <span class="badge bg-success">Belum Dikerjakan</span>
                                         @elseif ($schedule->inspeksiHeader->status_workflow == 'draft')
                                             <span class="badge bg-secondary">Draft</span>
@@ -315,14 +375,61 @@
 
                                     </td>
 
-                                    <td>
+                                    <td class="aksi-cell">
+
+                                        @php
+                                            $inspeksi = $schedule->inspeksiHeader;
+                                            $canManageDraft =
+                                                $inspeksi &&
+                                                $inspeksi->status_workflow === 'draft' &&
+                                                ((string) $inspeksi->prepared_by === (string) auth()->id() ||
+                                                    (string) $inspeksi->prepared_by ===
+                                                        (string) auth()->user()->username);
+                                        @endphp
 
                                         @if ($schedule->inspeksiHeader)
-                                            <button class="action-btn btn-view view-report"
-                                                data-id="{{ $schedule->inspeksiHeader->id }}"
-                                                data-status="{{ $schedule->inspeksiHeader->status_workflow }}">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
+                                            <div class="action-group">
+                                                <button class="action-btn btn-view view-report"
+                                                    title="Detail"
+                                                    data-id="{{ $schedule->inspeksiHeader->id }}"
+                                                    data-status="{{ $schedule->inspeksiHeader->status_workflow }}"
+                                                    data-can-submit="{{ $canManageDraft ? 1 : 0 }}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+
+                                                @if ($canManageDraft)
+                                                    <form action="{{ route('inspeksi.submit', $inspeksi->id) }}"
+                                                        method="POST" class="d-inline">
+                                                        @csrf
+                                                        <button type="submit" class="action-btn btn-send"
+                                                            title="Kirim ke Kepala RO"
+                                                            onclick="return confirm('Kirim draft ini ke Kepala RO?')">
+                                                            <i class="fas fa-paper-plane"></i>
+                                                        </button>
+                                                    </form>
+
+                                                    <button type="button" class="action-btn btn-edit"
+                                                        title="Edit Draft"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#editDraftModal"
+                                                        data-edit-url="{{ route('tasks.show', $schedule->id) }}?draft_id={{ $inspeksi->id }}&embedded=1">
+                                                        <i class="fas fa-pen"></i>
+                                                    </button>
+
+                                                    <form action="{{ route('inspeksi.destroy-draft', $inspeksi->id) }}"
+                                                        method="POST" class="d-inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="action-btn btn-delete"
+                                                            title="Hapus Draft"
+                                                            onclick="return confirm('Yakin ingin menghapus draft ini?')">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        @elseif ($schedule->status === 'rejected')
+                                            <span class="text-muted">Ditolak otomatis (terlewat)</span>
                                         @else
                                             <span class="text-muted">Belum ada laporan</span>
                                         @endif
@@ -367,18 +474,41 @@
                 </div>
             </div>
 
+            <div class="modal fade" id="editDraftModal" tabindex="-1">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h5 class="modal-title">Edit Draft - Form Inspeksi Jaringan Fiber Optik</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <iframe id="editDraftIframe" class="edit-iframe" src="about:blank"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form id="submitDraftForm" method="POST" class="d-none">
+                @csrf
+            </form>
+
         </div>
     @endsection
 
 
     @push('scripts')
         <script>
+            let currentId = null;
+            let currentCanSubmit = false;
+
             $(document).on('click', '.view-report', function() {
 
                 let id = $(this).data('id');
                 let status = $(this).data('status');
+                let canSubmit = Number($(this).data('can-submit')) === 1;
 
                 currentId = id;
+                currentCanSubmit = canSubmit;
 
                 let modal = new bootstrap.Modal(document.getElementById('reportModal'));
                 modal.show();
@@ -400,6 +530,10 @@
                         .prop('disabled', true)
                         .text('Laporan Disetujui');
 
+                } else if (status === 'draft' && !canSubmit) {
+                    $('#btnKirimRO')
+                        .prop('disabled', true)
+                        .text('Draft Milik Teknisi Lain');
                 } else {
                     $('#btnKirimRO')
                         .prop('disabled', false)
@@ -416,6 +550,31 @@
                         $('#reportContent').html('<p class="text-danger">Gagal load data</p>');
                     });
 
+            });
+
+            $('#btnKirimRO').on('click', function() {
+                if (!currentId || !currentCanSubmit) {
+                    return;
+                }
+
+                if (!confirm('Kirim draft ini ke Kepala RO?')) {
+                    return;
+                }
+
+                const form = document.getElementById('submitDraftForm');
+                form.action = `/inspeksi/submit/${currentId}`;
+                form.submit();
+            });
+
+            $(document).on('click', '.btn-edit', function() {
+                const editUrl = $(this).data('edit-url');
+                if (!editUrl) return;
+
+                $('#editDraftIframe').attr('src', editUrl);
+            });
+
+            $('#editDraftModal').on('hidden.bs.modal', function() {
+                $('#editDraftIframe').attr('src', 'about:blank');
             });
         </script>
     @endpush

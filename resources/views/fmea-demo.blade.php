@@ -304,6 +304,59 @@
         .form-group {
             grid-template-columns: 1fr;
         }
+
+        .alert {
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            font-size: 14px;
+            border: 1px solid;
+        }
+
+        .alert-success {
+            background: #dcfce7;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .preview-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px;
+            background: #fff;
+        }
+
+        .preview-card img {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .signature-preview {
+            margin-top: 10px;
+        }
+
+        .signature-preview img {
+            max-width: 280px;
+            max-height: 140px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #fff;
+        }
     </style>
 </head>
 
@@ -314,9 +367,40 @@
         <div style="max-width:900px;margin:auto"></div>
         <h2>Form Inspeksi Jaringan Fiber Optik</h2>
 
-        <form method="POST" action="{{ route('tasks.store', ['schedule' => $schedule->id]) }}"
+        @if (session('success'))
+            <div class="alert alert-success">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="alert alert-error">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="alert alert-error">
+                <ul style="margin:0; padding-left:18px;">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        @php
+            $isEditDraft = isset($draft) && $draft;
+        @endphp
+
+        <form method="POST"
+            action="{{ $isEditDraft ? route('inspeksi.update-draft', $draft->id) : route('tasks.store', ['schedule' => $schedule->id]) }}"
+            target="{{ request('embedded') ? '_top' : '_self' }}"
             enctype="multipart/form-data">
             @csrf
+            @if ($isEditDraft)
+                @method('PUT')
+            @endif
             <input type="hidden" name="schedule_id" value="{{ $schedule->id }}">
 
 
@@ -635,7 +719,24 @@
 
                 <div class="form-group">
                     <label>Upload Foto (Bisa lebih dari 1)</label>
-                    <input type="file" name="images[]" multiple class="form-control">
+                    <input type="file" id="images_input" name="images[]" multiple class="form-control" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+                    <small style="display:block; margin-top:6px; color:#64748b;">
+                        Maks 10 foto, format JPG/JPEG/PNG, maksimal 5 MB per foto, total disarankan <= 9 MB.
+                    </small>
+
+                    @if ($isEditDraft && $draft->images->count() > 0)
+                        <small style="display:block; margin-top:6px; color:#2563eb;">
+                            Jika tidak upload foto baru, foto lama tetap dipakai.
+                        </small>
+
+                        <div class="preview-grid">
+                            @foreach ($draft->images as $img)
+                                <a href="{{ asset('storage/' . $img->image_path) }}" target="_blank" class="preview-card">
+                                    <img src="{{ asset('storage/' . $img->image_path) }}" alt="Foto bukti">
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -653,7 +754,17 @@
 
                         <canvas id="canvas_prepared"></canvas>
 
-                        <input type="hidden" name="signature_teknisi" id="prepared_canvas">
+                        <input type="hidden" name="signature_teknisi" id="prepared_canvas"
+                            value="{{ $isEditDraft ? $draft->prepared_signature : '' }}">
+
+                        @if ($isEditDraft && $draft->prepared_signature)
+                            <div class="signature-preview">
+                                <small style="display:block; color:#2563eb; margin-bottom:6px;">
+                                    Tanda tangan sebelumnya (tetap dipakai kalau tidak digambar ulang)
+                                </small>
+                                <img src="{{ $draft->prepared_signature }}" alt="Tanda tangan teknisi">
+                            </div>
+                        @endif
 
                         <button type="button" onclick="clearPrepared()">Clear</button>
                     </div>
@@ -702,12 +813,74 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
 
 <script>
+    const draftPayload = @json($draftPayload ?? null);
+
+    function setCaraPatroliVisibility() {
+        const select = document.getElementById('cara_patroli');
+        const label = document.getElementById('label_cara_patroli_lainnya');
+        const input = document.getElementById('cara_patroli_lainnya');
+
+        if (!select || !label || !input) return;
+
+        const isLainnya = select.value === 'lainnya';
+        label.style.display = isLainnya ? 'block' : 'none';
+        input.style.display = isLainnya ? 'block' : 'none';
+
+        if (!isLainnya) {
+            input.value = '';
+        }
+    }
+
+    function setFieldValue(fieldName, value) {
+        if (value === null || value === undefined) return;
+
+        const selector = `[name="${fieldName.replace(/"/g, '\\"')}"]`;
+        const field = document.querySelector(selector);
+        if (!field) return;
+
+        if (field.type === 'checkbox' || field.type === 'radio') {
+            field.checked = String(field.value) === String(value);
+            return;
+        }
+
+        field.value = value;
+    }
+
+    function applyPayloadRecursive(obj, prefix = '') {
+        if (!obj || typeof obj !== 'object') return;
+
+        Object.entries(obj).forEach(([key, value]) => {
+            const fieldName = prefix ? `${prefix}[${key}]` : key;
+
+            if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+                applyPayloadRecursive(value, fieldName);
+                return;
+            }
+
+            setFieldValue(fieldName, value);
+        });
+    }
+
     $(document).ready(function() {
         if ($.fn.select2) {
             $('.select2').select2({
                 placeholder: 'Cari...',
                 allowClear: true
             });
+        }
+
+        if (draftPayload) {
+            applyPayloadRecursive(draftPayload);
+        }
+
+        const caraPatroli = document.getElementById('cara_patroli');
+        if (caraPatroli) {
+            caraPatroli.addEventListener('change', setCaraPatroliVisibility);
+            setCaraPatroliVisibility();
+        }
+
+        if (draftPayload && draftPayload.nama_pelaksana) {
+            $('#nama_pelaksana').val(draftPayload.nama_pelaksana).trigger('change');
         }
     });
 </script>
@@ -721,6 +894,7 @@
         // ✅ FIX 1: set ukuran kecil (WAJIB)
         canvas.width = 300;
         canvas.height = 150;
+        canvas.dataset.hasStroke = '0';
 
         const ctx = canvas.getContext("2d");
 
@@ -750,6 +924,7 @@
             ctx.lineWidth = 2;
             ctx.lineCap = "round";
             ctx.strokeStyle = "#000";
+            canvas.dataset.hasStroke = '1';
 
             ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
             ctx.stroke();
@@ -760,7 +935,11 @@
         function save() {
             const input = document.getElementById(inputId);
             if (input) {
-                // ✅ FIX 2: compress image
+                const hasStroke = canvas.dataset.hasStroke === '1';
+                if (!hasStroke && input.value) {
+                    return;
+                }
+
                 input.value = canvas.toDataURL('image/png');
             }
         }
@@ -778,6 +957,7 @@
 
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.dataset.hasStroke = '0';
 
         // ✅ reset hidden input
         document.getElementById("prepared_canvas").value = '';
@@ -786,6 +966,41 @@
 
     // aktifkan canvas
     setupCanvas("canvas_prepared", "prepared_canvas");
+
+    function formatMb(bytes) {
+        return (bytes / (1024 * 1024)).toFixed(2);
+    }
+
+    function validateImagesBeforeSubmit(event) {
+        const input = document.getElementById('images_input');
+        if (!input || !input.files || input.files.length === 0) {
+            return true;
+        }
+
+        const maxPerFile = 5 * 1024 * 1024; // 5MB
+        const maxTotal = 9 * 1024 * 1024; // 9MB (aman dari limit server 10MB)
+        let totalSize = 0;
+
+        for (const file of input.files) {
+            totalSize += file.size;
+
+            if (file.size > maxPerFile) {
+                event.preventDefault();
+                alert(`File "${file.name}" berukuran ${formatMb(file.size)} MB. Maksimal 5 MB per file.`);
+                return false;
+            }
+        }
+
+        if (totalSize > maxTotal) {
+            event.preventDefault();
+            alert(`Total ukuran foto ${formatMb(totalSize)} MB. Maksimal total upload 9 MB per submit.`);
+            return false;
+        }
+
+        return true;
+    }
+
+    document.querySelector("form").addEventListener("submit", validateImagesBeforeSubmit);
 
 
 
