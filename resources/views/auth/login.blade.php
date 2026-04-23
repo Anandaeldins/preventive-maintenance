@@ -236,6 +236,16 @@ input:focus {
     font-weight: 600;
 }
 
+.alert-error {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    font-size: 14px;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
     .login-wrapper {
@@ -290,14 +300,26 @@ input:focus {
         <form method="POST" action="/login">
             @csrf
 
+            @if (session('error'))
+                <div class="alert-error">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" required>
+                <label>Username / Email</label>
+                <input type="text" name="username" value="{{ old('username') }}" required>
+                @error('username')
+                    <div class="alert-error" style="margin-top:8px; margin-bottom:0;">{{ $message }}</div>
+                @enderror
             </div>
 
             <div class="form-group">
                 <label>Password</label>
                 <input type="password" name="password" required>
+                @error('password')
+                    <div class="alert-error" style="margin-top:8px; margin-bottom:0;">{{ $message }}</div>
+                @enderror
             </div>
 
             <button type="submit" class="btn-login">Sign In</button>

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('inspeksi_headers', function (Blueprint $table) {
             if (!Schema::hasColumn('inspeksi_headers', 'schedule_id')) {
-                $table->foreignId('schedule_id')->nullable()->constrained('pm_schedules')->onDelete('set null');
+                $table->foreignId('schedule_id')->nullable();
             }
             if (!Schema::hasColumn('inspeksi_headers', 'status_workflow')) {
                 $table->enum('status_workflow', ['draft', 'pending_ro', 'pending_pusat', 'approved', 'rejected'])->default('draft');
@@ -28,7 +28,6 @@ return new class extends Migration
     {
         Schema::table('inspeksi_headers', function (Blueprint $table) {
             if (Schema::hasColumn('inspeksi_headers', 'schedule_id')) {
-                $table->dropForeign(['schedule_id']);
                 $table->dropColumn('schedule_id');
             }
             if (Schema::hasColumn('inspeksi_headers', 'status_workflow')) {

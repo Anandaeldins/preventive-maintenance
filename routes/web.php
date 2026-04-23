@@ -152,8 +152,16 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::post('/inspeksi/store', [InspeksiController::class,'store'])
     ->name('inspeksi.store');
 
-Route::post('/inspeksi/submit/{id}', [InspeksiController::class,'submitForApproval'])
-    ->name('inspeksi.submit');
+Route::middleware(['auth', 'role:teknisi'])->group(function () {
+    Route::post('/inspeksi/submit/{id}', [InspeksiController::class,'submitForApproval'])
+        ->name('inspeksi.submit');
+
+    Route::put('/inspeksi/{id}/draft', [InspeksiController::class, 'updateDraft'])
+        ->name('inspeksi.update-draft');
+
+    Route::delete('/inspeksi/{id}/draft', [InspeksiController::class, 'destroyDraft'])
+        ->name('inspeksi.destroy-draft');
+});
 
 Route::get('/inspeksi/risk-summary', [InspeksiController::class,'riskSummary'])
     ->name('inspeksi.risk-summary');

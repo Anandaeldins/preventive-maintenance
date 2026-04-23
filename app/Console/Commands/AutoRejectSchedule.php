@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\PmSchedule;
 use Illuminate\Console\Command;
 
 class AutoRejectSchedule extends Command
@@ -18,36 +19,18 @@ class AutoRejectSchedule extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Auto reject jadwal PM terlewat yang belum dikerjakan';
 
     /**
      * Execute the console command.
      */
-    public function handle()
-   
-{
-    $today = now()->toDateString();
+    public function handle(): int
+    {
+        $updated = PmSchedule::rejectOverdueWithoutInspeksi();
 
-    $schedules = \App\Models\PmSchedule::where('status', 'approved')
-        ->whereDate('planned_date', '<', $today)
-        ->get();
+        $this->info("Auto reject selesai. Total jadwal ditolak: {$updated}");
 
-    foreach ($schedules as $schedule) {
-
-        // ✅ CEK: apakah sudah pernah dibuat inspeksi (status apapun)
-        $hasInspeksi = \App\Models\InspeksiHeader::where('schedule_id', $schedule->id)
-            ->exists();
-
-        // 🔥 HANYA reject kalau BELUM ADA inspeksi sama sekali
-        if (!$hasInspeksi) {
-
-            $schedule->update([
-                'status' => 'rejected'
-            ]);
-
-        }
+        return self::SUCCESS;
     }
-
-    return 0;
 }
-    }
+

@@ -58,5 +58,17 @@ public function inspeksiHeader()
     return $this->hasOne(\App\Models\InspeksiHeader::class,'schedule_id');
 }
 
+public static function rejectOverdueWithoutInspeksi(?string $today = null): int
+{
+    $today = $today ?? now()->toDateString();
+
+    return static::query()
+        ->where('status', 'approved')
+        ->whereDate('planned_date', '<', $today)
+        ->whereDoesntHave('inspeksiHeader')
+        ->update([
+            'status' => 'rejected',
+        ]);
+}
 
 }
