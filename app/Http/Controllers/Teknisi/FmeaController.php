@@ -238,7 +238,17 @@ if (!$segmentName) {
     } else {
         $priority = 'RENDAH';
     }
+// ================= KETERANGAN =================
+$itemTertinggi = collect($rekap)->sortByDesc('avg_rpn')->first();
+$namaItem = array_search($itemTertinggi, $rekap);
 
+if ($priority == 'KRITIS') {
+    $keterangan = "Kategori KRITIS karena terdapat risiko tertinggi pada item '{$namaItem}' dengan nilai RPN {$itemTertinggi['avg_rpn']} yang melebihi ambang batas (≥20).";
+} elseif ($priority == 'SEDANG') {
+    $keterangan = "Kategori SEDANG karena terdapat risiko dengan nilai RPN antara 10 hingga 19, sehingga perlu perhatian dan pengendalian lebih lanjut.";
+} else {
+    $keterangan = "Kategori RENDAH karena seluruh nilai RPN berada di bawah 10, sehingga risiko relatif kecil dan masih dalam batas aman.";
+}
  $segmentModel = \App\Models\Segment::whereRaw(
     'LOWER(nama_segment) = ?', 
     [$segmentName]
@@ -272,7 +282,8 @@ $segmentId = $segmentModel->id;
         'priority',
         'maxRpn',
         'bulan',
-        'tahun'
+        'tahun',
+        'keterangan'
     ))->render();
 
     return response()->json(['html' => $html]);

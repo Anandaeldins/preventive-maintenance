@@ -27,6 +27,12 @@
             @endforeach
         </tbody>
     </table>
+    <p><strong>Prioritas: {{ $priority }}</strong></p>
+
+    <p style="margin-top:10px; color:#555;">
+        <strong>Keterangan:</strong><br>
+        {{ $keterangan }}
+    </p>
 @else
     <p>Tidak ada data FMEA untuk bulan ini.</p>
 @endif
